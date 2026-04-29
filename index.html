@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>カバのレトロ冒険</title>
+    <title>バカなカバの大冒険</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
     <style>
-        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        canvas { image-rendering: pixelated; } /* ドットをくっきりさせる */
+        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        canvas { image-rendering: pixelated; }
     </style>
 </head>
 <body>
@@ -16,58 +16,73 @@ const config = {
     type: Phaser.AUTO,
     width: 160,
     height: 144,
-    zoom: 3, // 画面を3倍に拡大して表示
+    zoom: 3, 
     pixelArt: true,
-    physics: { default: 'arcade' },
+    physics: { 
+        default: 'arcade',
+        arcade: { debug: false } 
+    },
     scene: { preload: preload, create: create, update: update }
 };
 
 const game = new Phaser.Game(config);
 
 function preload() {
-    // 画像や音源の読み込み（パスは自分のファイルに合わせて変更してください）
-    this.load.image('map', 'map.png');　//マップ
-    this.load.image('hippo', 'hippo.png'); // 主人公カバ
-    this.load.image('npc', 'npc.png');     // 話しかけるキャラ
-    this.load.audio('myMusic', 'your_song.mp3'); // あなたが作った曲
+    // 【重要】ファイル名がすべて小文字であることを確認してください
+    this.load.image('map', 'map.png');
+    this.load.image('hippo', 'hippo.png');
+    this.load.image('npc', 'npc.png');
+    this.load.audio('myMusic', 'your_song.mp3');
 }
 
 let player;
 let npc;
 let music;
 let musicStarted = false;
+let targetPos = null; // 移動先を保持
 
 function create() {
-    // 1. カバ（プレイヤー）の作成
+    // 1. 背景（マップ）を配置（中心点 80, 72 に配置）
+    this.add.image(80, 72, 'map');
+
+    // 2. NPCの作成（カバより先に描画して、カバが上に重なるようにする）
+    npc = this.physics.add.staticSprite(120, 50, 'npc');
+
+    // 3. カバ（プレイヤー）の作成
     player = this.physics.add.sprite(80, 72, 'hippo');
     player.setCollideWorldBounds(true);
 
-    // 2. NPC（話しかける相手）の作成
-    npc = this.physics.add.staticSprite(120, 50, 'npc');
-
-    // 3. 音楽の準備
+    // 4. 音楽の準備
     music = this.sound.add('myMusic');
 
-    // 4. 重なり判定（接触したら音楽を流す）
+    // 5. 接触判定
     this.physics.add.overlap(player, npc, () => {
         if (!musicStarted) {
+            // ブラウザの制限対策：何らかの音が鳴る前にユーザーの操作が必要
+            if (this.sound.context.state === 'suspended') {
+                this.sound.context.resume();
+            }
             music.play({ loop: true });
             musicStarted = true;
             alert("「こんにちは！私の好きな曲を流すね」");
         }
     }, null, this);
 
-    // 5. スマホ操作用の簡易タッチ移動（画面をタップした方向へ移動）
+    // 6. スマホ操作（タップした場所を目的地にする）
     this.input.on('pointerdown', (pointer) => {
-        this.physics.moveToObject(player, pointer, 60);
+        targetPos = { x: pointer.worldX, y: pointer.worldY };
+        this.physics.moveTo(player, targetPos.x, targetPos.y, 60);
     });
 }
 
 function update() {
-    // 目的地に近づいたら停止
-    const distance = Phaser.Math.Distance.Between(player.x, player.y, this.input.activePointer.x, this.input.activePointer.y);
-    if (distance < 4) {
-        player.body.reset(player.x, player.y);
+    // 目的地に近づいたらピタッと止める処理
+    if (targetPos) {
+        const distance = Phaser.Math.Distance.Between(player.x, player.y, targetPos.x, targetPos.y);
+        if (distance < 4) {
+            player.body.reset(player.x, player.y);
+            targetPos = null;
+        }
     }
 }
 </script>
