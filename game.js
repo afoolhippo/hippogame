@@ -8,6 +8,7 @@ const dialogBox = document.getElementById("dialogBox");
 // ===== 状態 =====
 let gameStarted = false;
 let talking = false;
+let currentKey = null;
 
 // ===== 画像 =====
 const load = (src) => {
@@ -29,7 +30,7 @@ const player = {
   x: 50,
   y: 50,
   size: 32,
-  speed: 3
+  speed: 2
 };
 
 // ===== NPC =====
@@ -57,6 +58,24 @@ const npcs = [
   }
 ];
 
+// ===== キャンバス自動リサイズ =====
+function resizeCanvas() {
+  const scale = window.devicePixelRatio || 1;
+  const width = Math.min(window.innerWidth, 480);
+  const height = width * 0.9;
+
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+
+  canvas.style.width = width + "px";
+  canvas.style.height = height + "px";
+
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+}
+
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
 // ===== スタート =====
 function startGame() {
   titleScreen.classList.add("hidden");
@@ -68,15 +87,34 @@ function startGame() {
 titleScreen.addEventListener("click", startGame);
 document.getElementById("titleImage").addEventListener("click", startGame);
 
-// ===== 入力統一（キーボード＋スマホ）=====
-document.addEventListener("keydown", (e) => handleInput(e.key));
+// ===== キーボード =====
+document.addEventListener("keydown", (e) => {
+  currentKey = e.key;
+});
 
+document.addEventListener("keyup", () => {
+  currentKey = null;
+});
+
+// ===== スマホ操作 =====
 document.querySelectorAll("#controls button").forEach(btn => {
   const key = btn.dataset.key;
 
-  btn.addEventListener("pointerdown", (e) => {
+  btn.addEventListener("touchstart", (e) => {
     e.preventDefault();
-    handleInput(key);
+    currentKey = key;
+  });
+
+  btn.addEventListener("touchend", () => {
+    currentKey = null;
+  });
+
+  btn.addEventListener("mousedown", () => {
+    currentKey = key;
+  });
+
+  btn.addEventListener("mouseup", () => {
+    currentKey = null;
   });
 });
 
@@ -145,6 +183,10 @@ function draw() {
 
 // ===== ループ =====
 function loop() {
+  if (currentKey) {
+    handleInput(currentKey);
+  }
+
   draw();
   requestAnimationFrame(loop);
 }

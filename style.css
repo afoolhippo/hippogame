@@ -15,18 +15,15 @@ body {
   display: none;
 }
 
-/* タイトル画像 */
+/* タイトル */
 #titleImage {
   width: min(320px, 90vw);
   image-rendering: pixelated;
   cursor: pointer;
 }
 
-/* canvas（スマホ最適化） */
+/* canvas */
 canvas {
-  width: 100vw;
-  max-width: 480px;
-  height: auto;
   display: block;
   margin: 0 auto;
   border: 4px solid #0f380f;
@@ -70,5 +67,5 @@ canvas {
   color: #9bbc0f;
   border: 2px solid #306230;
   user-select: none;
-  touch-action: manipulation;
+  touch-action: none;
 }
