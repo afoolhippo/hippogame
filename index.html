@@ -12,88 +12,89 @@
 </head>
 <body>
 <script>
-// --- シーン1: タイトル画面 ---
-class TitleScene extends Phaser.Scene {
-    constructor() { super('TitleScene'); }
-
-    preload() {
-        this.load.image('title', 'title.png');
-    }
-
-    create() {
-        // タイトル画像の表示
-        if (this.textures.exists('title')) {
-            let bg = this.add.image(80, 72, 'title');
-        } else {
-            this.add.text(20, 60, 'バカなカバの大冒険\n(CLICK TO START)', { fontSize: '10px', fill: '#fff', align: 'center' });
-        }
-
-        // 画面をクリックしたらメインゲームへ
-        this.input.on('pointerdown', () => {
-            this.scene.start('MainScene');
-        });
-    }
-}
-
-// --- シーン2: メインゲーム ---
+// --- メインゲームシーン ---
 class MainScene extends Phaser.Scene {
     constructor() { super('MainScene'); }
 
     preload() {
+        // 画像読み込みとエラーチェック
         this.load.image('map', 'map.png');
         this.load.image('hippo', 'hippo.png');
         this.load.image('npc', 'npc.png');
+
+        this.load.on('loaderror', (file) => {
+            console.error('読み込み失敗：' + file.key + '（パス: ' + file.src + '）');
+            console.error('GitHub上のファイル名と大文字・小文字まで一致しているか確認してください。');
+        });
     }
 
     create() {
-        // マップ配置
-        this.add.image(80, 72, 'map');
+        // 1. マップ表示（読み込めていない場合は緑の背景）
+        if (this.textures.exists('map')) {
+            this.add.image(80, 72, 'map');
+        } else {
+            this.add.rectangle(80, 72, 160, 144, 0x8bac0f);
+        }
 
-        // NPC配置
+        // 2. キャラクター配置
         this.npc = this.physics.add.staticSprite(120, 50, 'npc');
-
-        // プレイヤー配置
         this.player = this.physics.add.sprite(80, 72, 'hippo');
         this.player.setCollideWorldBounds(true);
 
-        // 会話中かどうかのフラグ
-        this.isTalking = false;
+        // 3. メッセージウィンドウの作成（最初は隠しておく）
+        this.msgBox = this.add.container(0, 100).setDepth(10).setVisible(false);
+        let rect = this.add.rectangle(80, 20, 150, 40, 0x000000).setStrokeStyle(1, 0xffffff);
+        this.msgText = this.add.text(15, 5, '', { fontSize: '10px', fill: '#fff', wordWrap: { width: 130 } });
+        this.msgBox.add([rect, this.msgText]);
 
-        // 衝突判定
+        // 4. 衝突判定
         this.physics.add.overlap(this.player, this.npc, () => {
-            if (!this.isTalking) {
-                this.isTalking = true;
-                this.player.body.setVelocity(0);
-                alert("カバ「こんにちは！冒険に出るぞ！」");
-                // アラートを閉じたら少し離す（連続発生防止）
-                this.player.x -= 5;
-                this.isTalking = false;
-            }
+            this.showMessage("カバ「こんにちは！冒険に出るぞ！」");
         });
 
-        // 移動用ターゲット（目的地）
         this.target = new Phaser.Math.Vector2(this.player.x, this.player.y);
     }
 
-    update() {
-        if (this.isTalking) return;
+    // メッセージを表示する関数
+    showMessage(text) {
+        if (this.msgBox.visible) return;
+        this.msgBox.setVisible(true);
+        this.msgText.setText(text);
+        this.player.body.setVelocity(0);
 
-        // タップした場所に向かって移動（簡易上下左右移動）
+        // 2秒後に自動で閉じる
+        this.time.delayedCall(2000, () => {
+            this.msgBox.setVisible(false);
+            this.player.x -= 5; // 重なり回避
+        });
+    }
+
+    update() {
+        if (this.msgBox.visible) return; // 会話中は動けない
+
         if (this.input.activePointer.isDown) {
             this.target.x = this.input.activePointer.worldX;
             this.target.y = this.input.activePointer.worldY;
             this.physics.moveToObject(this.player, this.target, 60);
         } else {
-            // 指を離したら止まる
-            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.target.x, this.target.y);
-            if (dist < 4) {
+            if (Phaser.Math.Distance.Between(this.player.x, this.player.y, this.target.x, this.target.y) < 4) {
                 this.player.body.setVelocity(0);
             }
         }
     }
 }
 
-// --- ゲーム全体のコンフィグ ---
+// タイトルシーン（簡易版）
+class TitleScene extends Phaser.Scene {
+    constructor() { super('TitleScene'); }
+    preload() { this.load.image('title', 'title.png'); }
+    create() {
+        if (this.textures.exists('title')) { this.add.image(80, 72, 'title'); }
+        else { this.add.text(30, 60, 'TITLE SCREEN\nCLICK TO START', { fontSize: '10px' }); }
+        this.input.on('pointerdown', () => this.scene.start('MainScene'));
+    }
+}
+
 const config = {
     type: Phaser.AUTO,
     width: 160,
@@ -101,9 +102,8 @@ const config = {
     zoom: 3,
     pixelArt: true,
     physics: { default: 'arcade' },
-    scene: [TitleScene, MainScene] // タイトルを先に読み込む
+    scene: [TitleScene, MainScene]
 };
-
 const game = new Phaser.Game(config);
 </script>
 </body>
