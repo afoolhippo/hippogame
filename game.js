@@ -1,4 +1,4 @@
-// ===== 要素取得 =====
+// ===== 要素 =====
 const titleScreen = document.getElementById("titleScreen");
 const gameScreen = document.getElementById("gameScreen");
 const canvas = document.getElementById("gameCanvas");
@@ -8,37 +8,27 @@ const dialogBox = document.getElementById("dialogBox");
 // ===== 状態 =====
 let gameStarted = false;
 let talking = false;
-let assetsLoaded = 0;
-const totalAssets = 5; // 画像数
 
-// ===== 画像読み込み =====
-function loadImage(src) {
+// ===== 画像 =====
+function load(src) {
   const img = new Image();
   img.src = src;
-  img.onload = () => {
-    assetsLoaded++;
-    if (assetsLoaded === totalAssets) {
-      console.log("全画像ロード完了");
-    }
-  };
   return img;
 }
 
-const hippoImg = loadImage("assets/hippo.png");
-
+const hippoImg = load("assets/hippo.png");
 const npcImgs = [
-  loadImage("assets/npc1.png"),
-  loadImage("assets/npc2.png"),
-  loadImage("assets/npc3.png")
+  load("assets/npc1.png"),
+  load("assets/npc2.png"),
+  load("assets/npc3.png")
 ];
-
-const mapImg = loadImage("assets/map.png");
+const mapImg = load("assets/map.png");
 
 // ===== プレイヤー =====
 const player = {
   x: 50,
   y: 50,
-  size: 32, // 画像サイズに合わせる
+  size: 32,
   speed: 3
 };
 
@@ -68,37 +58,46 @@ const npcs = [
 ];
 
 // ===== タイトルクリック =====
-titleScreen.addEventListener("click", () => {
-  if (assetsLoaded < totalAssets) {
-    alert("読み込み中です...");
-    return;
-  }
-
+function startGame() {
   titleScreen.classList.add("hidden");
   gameScreen.classList.remove("hidden");
   gameStarted = true;
   gameLoop();
+}
+
+titleScreen.addEventListener("click", startGame);
+document.getElementById("titleImage").addEventListener("click", startGame);
+
+// ===== キーボード =====
+document.addEventListener("keydown", (e) => handleInput(e.key));
+
+// ===== タッチ操作 =====
+document.querySelectorAll("#controls button").forEach(btn => {
+  const key = btn.dataset.key;
+
+  btn.addEventListener("click", () => handleInput(key));
+  btn.addEventListener("touchstart", () => handleInput(key));
 });
 
-// ===== 入力 =====
-document.addEventListener("keydown", (e) => {
+// ===== 入力処理 =====
+function handleInput(key) {
   if (!gameStarted) return;
 
-  if (talking) {
-    if (e.key === "Enter") closeDialog();
+  if (talking && key === "Enter") {
+    closeDialog();
     return;
   }
 
-  switch (e.key) {
+  switch (key) {
     case "ArrowUp": player.y -= player.speed; break;
     case "ArrowDown": player.y += player.speed; break;
     case "ArrowLeft": player.x -= player.speed; break;
     case "ArrowRight": player.x += player.speed; break;
     case "Enter": checkInteraction(); break;
   }
-});
+}
 
-// ===== NPC会話判定 =====
+// ===== NPC判定 =====
 function checkInteraction() {
   npcs.forEach(npc => {
     const dx = player.x - npc.x;
@@ -111,13 +110,12 @@ function checkInteraction() {
   });
 }
 
-// ===== 会話表示 =====
+// ===== 会話 =====
 function showDialog(npc) {
   talking = true;
   dialogBox.classList.remove("hidden");
   dialogBox.textContent = npc.text;
 
-  // 他の音停止
   npcs.forEach(n => {
     n.music.pause();
     n.music.currentTime = 0;
@@ -126,7 +124,6 @@ function showDialog(npc) {
   npc.music.play();
 }
 
-// ===== 会話終了 =====
 function closeDialog() {
   talking = false;
   dialogBox.classList.add("hidden");
@@ -136,31 +133,16 @@ function closeDialog() {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // マップ
   ctx.drawImage(mapImg, 0, 0, canvas.width, canvas.height);
 
-  // NPC
   npcs.forEach(npc => {
-    ctx.drawImage(
-      npc.img,
-      npc.x,
-      npc.y,
-      32,
-      32
-    );
+    ctx.drawImage(npc.img, npc.x, npc.y, 32, 32);
   });
 
-  // プレイヤー（カバ）
-  ctx.drawImage(
-    hippoImg,
-    player.x,
-    player.y,
-    player.size,
-    player.size
-  );
+  ctx.drawImage(hippoImg, player.x, player.y, player.size, player.size);
 }
 
-// ===== ゲームループ =====
+// ===== ループ =====
 function gameLoop() {
   draw();
   requestAnimationFrame(gameLoop);

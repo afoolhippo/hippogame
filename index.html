@@ -3,51 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <title>カバの冒険</title>
-
-  <style>
-    body {
-      background: #9bbc0f;
-      font-family: monospace;
-      text-align: center;
-      margin: 0;
-      padding: 0;
-    }
-
-    .screen {
-      margin-top: 40px;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    canvas {
-      border: 4px solid #0f380f;
-      background: #8bac0f;
-      image-rendering: pixelated;
-    }
-
-    /* タイトル画像サイズ調整（重要） */
-    #titleImage {
-      width: 320px;
-      image-rendering: pixelated;
-      cursor: pointer;
-    }
-
-    #dialogBox {
-      width: 300px;
-      margin: 10px auto;
-      padding: 10px;
-      background: #0f380f;
-      color: #9bbc0f;
-      border: 2px solid #306230;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<!-- タイトル画面 -->
+<!-- タイトル -->
 <div id="titleScreen" class="screen">
   <img id="titleImage" src="assets/title.png" alt="タイトル">
   <p>クリックしてスタート</p>
@@ -55,8 +16,24 @@
 
 <!-- ゲーム画面 -->
 <div id="gameScreen" class="screen hidden">
+
   <canvas id="gameCanvas" width="320" height="288"></canvas>
+
   <div id="dialogBox" class="hidden"></div>
+
+  <!-- スマホ用コントロール -->
+  <div id="controls">
+    <button data-key="ArrowUp">↑</button>
+
+    <div class="row">
+      <button data-key="ArrowLeft">←</button>
+      <button data-key="ArrowDown">↓</button>
+      <button data-key="ArrowRight">→</button>
+    </div>
+
+    <button data-key="Enter">OK</button>
+  </div>
+
 </div>
 
 <script src="game.js"></script>
