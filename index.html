@@ -6,8 +6,8 @@
     <title>バカなカバの大冒険</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
     <style>
-        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        canvas { image-rendering: pixelated; }
+        body { margin: 0; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        canvas { image-rendering: pixelated; border: 2px solid #2d4538; }
     </style>
 </head>
 <body>
@@ -16,19 +16,21 @@ const config = {
     type: Phaser.AUTO,
     width: 160,
     height: 144,
-    zoom: 3, 
+    zoom: 3,
     pixelArt: true,
-    physics: { 
-        default: 'arcade',
-        arcade: { debug: false } 
-    },
+    physics: { default: 'arcade' },
     scene: { preload: preload, create: create, update: update }
 };
 
 const game = new Phaser.Game(config);
 
 function preload() {
-    // 【重要】ファイル名がすべて小文字であることを確認してください
+    // 読み込みエラーが起きても止まらないように設定
+    this.load.on('loaderror', (file) => {
+        console.warn('ファイルの読み込みに失敗しました: ' + file.src);
+    });
+
+    // ここで画像を読み込み（ファイル名はすべて小文字で統一してください）
     this.load.image('map', 'map.png');
     this.load.image('hippo', 'hippo.png');
     this.load.image('npc', 'npc.png');
@@ -39,49 +41,67 @@ let player;
 let npc;
 let music;
 let musicStarted = false;
-let targetPos = null; // 移動先を保持
+let targetPos = { x: 80, y: 72 };
 
 function create() {
-    // 1. 背景（マップ）を配置（中心点 80, 72 に配置）
-    this.add.image(80, 72, 'map');
+    // 1. 背景の描画
+    // map.pngがあれば表示、なければ緑の塗りつぶし
+    if (this.textures.exists('map')) {
+        this.add.image(80, 72, 'map');
+    } else {
+        this.add.rectangle(80, 72, 160, 144, 0x8bac0f).setOrigin(0.5);
+        this.add.text(10, 10, 'MAP MISSING', { fontSize: '8px', fill: '#306230' });
+    }
 
-    // 2. NPCの作成（カバより先に描画して、カバが上に重なるようにする）
-    npc = this.physics.add.staticSprite(120, 50, 'npc');
+    // 2. NPCの作成
+    if (this.textures.exists('npc')) {
+        npc = this.physics.add.staticSprite(120, 50, 'npc');
+    } else {
+        npc = this.add.rectangle(120, 50, 16, 16, 0x306230);
+        this.physics.add.existing(npc, true);
+    }
 
-    // 3. カバ（プレイヤー）の作成
-    player = this.physics.add.sprite(80, 72, 'hippo');
-    player.setCollideWorldBounds(true);
+    // 3. プレイヤー（カバ）の作成
+    if (this.textures.exists('hippo')) {
+        player = this.physics.add.sprite(80, 72, 'hippo');
+    } else {
+        player = this.add.rectangle(80, 72, 16, 16, 0x0f380f);
+        this.physics.add.existing(player);
+    }
+    player.body.setCollideWorldBounds(true);
 
-    // 4. 音楽の準備
-    music = this.sound.add('myMusic');
+    // 4. 音楽の設定
+    if (this.cache.audio.exists('myMusic')) {
+        music = this.sound.add('myMusic');
+    }
 
-    // 5. 接触判定
+    // 5. 衝突判定（重なったら音を鳴らす）
     this.physics.add.overlap(player, npc, () => {
-        if (!musicStarted) {
-            // ブラウザの制限対策：何らかの音が鳴る前にユーザーの操作が必要
-            if (this.sound.context.state === 'suspended') {
-                this.sound.context.resume();
-            }
+        if (!musicStarted && music) {
             music.play({ loop: true });
             musicStarted = true;
-            alert("「こんにちは！私の好きな曲を流すね」");
+            alert("「こんにちは！私の作った曲を聴いてね！」");
         }
-    }, null, this);
+    });
 
-    // 6. スマホ操作（タップした場所を目的地にする）
+    // 6. 操作（画面をタップしたところへ歩く）
     this.input.on('pointerdown', (pointer) => {
-        targetPos = { x: pointer.worldX, y: pointer.worldY };
+        // ブラウザの音ブロックを解除
+        if (this.sound.context.state === 'suspended') {
+            this.sound.context.resume();
+        }
+        
+        targetPos.x = pointer.worldX;
+        targetPos.y = pointer.worldY;
         this.physics.moveTo(player, targetPos.x, targetPos.y, 60);
     });
 }
 
 function update() {
-    // 目的地に近づいたらピタッと止める処理
-    if (targetPos) {
+    if (player && player.body) {
         const distance = Phaser.Math.Distance.Between(player.x, player.y, targetPos.x, targetPos.y);
         if (distance < 4) {
             player.body.reset(player.x, player.y);
-            targetPos = null;
         }
     }
 }
