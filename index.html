@@ -12,6 +12,88 @@
 </head>
 <body>
 <script>
+// --- シーン1: タイトル画面 ---
+class TitleScene extends Phaser.Scene {
+    constructor() { super('TitleScene'); }
+
+    preload() {
+        this.load.image('title', 'title.png');
+    }
+
+    create() {
+        // タイトル画像の表示
+        if (this.textures.exists('title')) {
+            let bg = this.add.image(80, 72, 'title');
+        } else {
+            this.add.text(20, 60, 'バカなカバの大冒険\n(CLICK TO START)', { fontSize: '10px', fill: '#fff', align: 'center' });
+        }
+
+        // 画面をクリックしたらメインゲームへ
+        this.input.on('pointerdown', () => {
+            this.scene.start('MainScene');
+        });
+    }
+}
+
+// --- シーン2: メインゲーム ---
+class MainScene extends Phaser.Scene {
+    constructor() { super('MainScene'); }
+
+    preload() {
+        this.load.image('map', 'map.png');
+        this.load.image('hippo', 'hippo.png');
+        this.load.image('npc', 'npc.png');
+    }
+
+    create() {
+        // マップ配置
+        this.add.image(80, 72, 'map');
+
+        // NPC配置
+        this.npc = this.physics.add.staticSprite(120, 50, 'npc');
+
+        // プレイヤー配置
+        this.player = this.physics.add.sprite(80, 72, 'hippo');
+        this.player.setCollideWorldBounds(true);
+
+        // 会話中かどうかのフラグ
+        this.isTalking = false;
+
+        // 衝突判定
+        this.physics.add.overlap(this.player, this.npc, () => {
+            if (!this.isTalking) {
+                this.isTalking = true;
+                this.player.body.setVelocity(0);
+                alert("カバ「こんにちは！冒険に出るぞ！」");
+                // アラートを閉じたら少し離す（連続発生防止）
+                this.player.x -= 5;
+                this.isTalking = false;
+            }
+        });
+
+        // 移動用ターゲット（目的地）
+        this.target = new Phaser.Math.Vector2(this.player.x, this.player.y);
+    }
+
+    update() {
+        if (this.isTalking) return;
+
+        // タップした場所に向かって移動（簡易上下左右移動）
+        if (this.input.activePointer.isDown) {
+            this.target.x = this.input.activePointer.worldX;
+            this.target.y = this.input.activePointer.worldY;
+            this.physics.moveToObject(this.player, this.target, 60);
+        } else {
+            // 指を離したら止まる
+            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.target.x, this.target.y);
+            if (dist < 4) {
+                this.player.body.setVelocity(0);
+            }
+        }
+    }
+}
+
+// --- ゲーム全体のコンフィグ ---
 const config = {
     type: Phaser.AUTO,
     width: 160,
@@ -19,92 +101,10 @@ const config = {
     zoom: 3,
     pixelArt: true,
     physics: { default: 'arcade' },
-    scene: { preload: preload, create: create, update: update }
+    scene: [TitleScene, MainScene] // タイトルを先に読み込む
 };
 
 const game = new Phaser.Game(config);
-
-function preload() {
-    // 読み込みエラーが起きても止まらないように設定
-    this.load.on('loaderror', (file) => {
-        console.warn('ファイルの読み込みに失敗しました: ' + file.src);
-    });
-
-    // ここで画像を読み込み（ファイル名はすべて小文字で統一してください）
-    this.load.image('map', 'map.png');
-    this.load.image('hippo', 'hippo.png');
-    this.load.image('npc', 'npc.png');
-    this.load.audio('myMusic', 'your_song.mp3');
-}
-
-let player;
-let npc;
-let music;
-let musicStarted = false;
-let targetPos = { x: 80, y: 72 };
-
-function create() {
-    // 1. 背景の描画
-    // map.pngがあれば表示、なければ緑の塗りつぶし
-    if (this.textures.exists('map')) {
-        this.add.image(80, 72, 'map');
-    } else {
-        this.add.rectangle(80, 72, 160, 144, 0x8bac0f).setOrigin(0.5);
-        this.add.text(10, 10, 'MAP MISSING', { fontSize: '8px', fill: '#306230' });
-    }
-
-    // 2. NPCの作成
-    if (this.textures.exists('npc')) {
-        npc = this.physics.add.staticSprite(120, 50, 'npc');
-    } else {
-        npc = this.add.rectangle(120, 50, 16, 16, 0x306230);
-        this.physics.add.existing(npc, true);
-    }
-
-    // 3. プレイヤー（カバ）の作成
-    if (this.textures.exists('hippo')) {
-        player = this.physics.add.sprite(80, 72, 'hippo');
-    } else {
-        player = this.add.rectangle(80, 72, 16, 16, 0x0f380f);
-        this.physics.add.existing(player);
-    }
-    player.body.setCollideWorldBounds(true);
-
-    // 4. 音楽の設定
-    if (this.cache.audio.exists('myMusic')) {
-        music = this.sound.add('myMusic');
-    }
-
-    // 5. 衝突判定（重なったら音を鳴らす）
-    this.physics.add.overlap(player, npc, () => {
-        if (!musicStarted && music) {
-            music.play({ loop: true });
-            musicStarted = true;
-            alert("「こんにちは！私の作った曲を聴いてね！」");
-        }
-    });
-
-    // 6. 操作（画面をタップしたところへ歩く）
-    this.input.on('pointerdown', (pointer) => {
-        // ブラウザの音ブロックを解除
-        if (this.sound.context.state === 'suspended') {
-            this.sound.context.resume();
-        }
-        
-        targetPos.x = pointer.worldX;
-        targetPos.y = pointer.worldY;
-        this.physics.moveTo(player, targetPos.x, targetPos.y, 60);
-    });
-}
-
-function update() {
-    if (player && player.body) {
-        const distance = Phaser.Math.Distance.Between(player.x, player.y, targetPos.x, targetPos.y);
-        if (distance < 4) {
-            player.body.reset(player.x, player.y);
-        }
-    }
-}
 </script>
 </body>
 </html>
