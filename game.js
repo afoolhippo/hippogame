@@ -4,15 +4,20 @@ const gameScreen = document.getElementById("gameScreen");
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const dialogBox = document.getElementById("dialogBox");
+const talkBtn = document.getElementById("talkBtn");
+const stopBtn = document.getElementById("stopBtn");
 
-// ===== 基本サイズ（これ重要）=====
+// ===== 基本サイズ =====
 const BASE_WIDTH = 320;
 const BASE_HEIGHT = 288;
+
+// ★ キャラサイズ（1.5倍）
+const SPRITE_SIZE = 48;
 
 // ===== 状態 =====
 let gameStarted = false;
 let talking = false;
-let target = null;
+let currentKey = null;
 
 // ===== 画像 =====
 const load = (src) => {
@@ -33,8 +38,8 @@ const mapImg = load("assets/map.png");
 const player = {
   x: 50,
   y: 50,
-  size: 32,
-  speed: 1.8
+  size: SPRITE_SIZE,
+  speed: 2
 };
 
 // ===== NPC =====
@@ -62,7 +67,7 @@ const npcs = [
   }
 ];
 
-// ===== キャンバスリサイズ（比率維持）=====
+// ===== リサイズ =====
 function resizeCanvas() {
   const scale = Math.min(
     window.innerWidth / BASE_WIDTH,
@@ -75,7 +80,6 @@ function resizeCanvas() {
   canvas.style.width = BASE_WIDTH * scale + "px";
   canvas.style.height = BASE_HEIGHT * scale + "px";
 }
-
 window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
@@ -86,42 +90,81 @@ function startGame() {
   gameStarted = true;
   loop();
 }
-
 titleScreen.addEventListener("click", startGame);
 document.getElementById("titleImage").addEventListener("click", startGame);
 
-// ===== タップ移動 =====
-canvas.addEventListener("touchstart", (e) => {
+// ===== キー操作（長押し対応）=====
+document.addEventListener("keydown", (e) => currentKey = e.key);
+document.addEventListener("keyup", () => currentKey = null);
+
+document.querySelectorAll("#controls button").forEach(btn => {
+  const key = btn.dataset.key;
+
+  if (!key) return;
+
+  btn.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    currentKey = key;
+  });
+
+  btn.addEventListener("touchend", () => currentKey = null);
+
+  btn.addEventListener("mousedown", () => currentKey = key);
+  btn.addEventListener("mouseup", () => currentKey = null);
+});
+
+// ===== 入力 =====
+function handleInput(key) {
+  if (talking) return;
+
+  switch (key) {
+    case "ArrowUp": player.y -= player.speed; break;
+    case "ArrowDown": player.y += player.speed; break;
+    case "ArrowLeft": player.x -= player.speed; break;
+    case "ArrowRight": player.x += player.speed; break;
+  }
+}
+
+// ===== 話しかけ =====
+talkBtn.addEventListener("click", handleTalk);
+talkBtn.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  handleTalk();
+});
+
+function handleTalk() {
   if (!gameStarted) return;
 
-  const rect = canvas.getBoundingClientRect();
+  if (talking) {
+    closeDialog();
+  } else {
+    checkNPC();
+  }
+}
 
-  const x = (e.touches[0].clientX - rect.left) * (BASE_WIDTH / rect.width);
-  const y = (e.touches[0].clientY - rect.top) * (BASE_HEIGHT / rect.height);
-
-  target = { x, y };
+// ===== BGM停止 =====
+stopBtn.addEventListener("click", stopAllMusic);
+stopBtn.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  stopAllMusic();
 });
 
-// PCクリック対応
-canvas.addEventListener("mousedown", (e) => {
-  const rect = canvas.getBoundingClientRect();
+function stopAllMusic() {
+  npcs.forEach(n => {
+    n.music.pause();
+    n.music.currentTime = 0;
+  });
+}
 
-  const x = (e.clientX - rect.left) * (BASE_WIDTH / rect.width);
-  const y = (e.clientY - rect.top) * (BASE_HEIGHT / rect.height);
-
-  target = { x, y };
-});
-
-// ===== NPC判定（自動会話）=====
+// ===== NPC判定（中心ベース）=====
 function checkNPC() {
   for (let npc of npcs) {
-    const dx = player.x - npc.x;
-    const dy = player.y - npc.y;
+    const dx = (player.x + SPRITE_SIZE/2) - (npc.x + SPRITE_SIZE/2);
+    const dy = (player.y + SPRITE_SIZE/2) - (npc.y + SPRITE_SIZE/2);
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist < 24) {
+    if (dist < 40) {
       talk(npc);
-      target = null;
       return;
     }
   }
@@ -133,26 +176,20 @@ function talk(npc) {
   dialogBox.classList.remove("hidden");
   dialogBox.textContent = npc.text;
 
-  npcs.forEach(n => {
-    n.music.pause();
-    n.music.currentTime = 0;
-  });
+  updateTalkButton();
 
+  stopAllMusic();
   npc.music.play();
 }
-
-// タップで閉じる
-canvas.addEventListener("touchstart", () => {
-  if (talking) closeDialog();
-});
-
-canvas.addEventListener("mousedown", () => {
-  if (talking) closeDialog();
-});
 
 function closeDialog() {
   talking = false;
   dialogBox.classList.add("hidden");
+  updateTalkButton();
+}
+
+function updateTalkButton() {
+  talkBtn.textContent = talking ? "とじる" : "話しかける";
 }
 
 // ===== 描画 =====
@@ -162,7 +199,7 @@ function draw() {
   ctx.drawImage(mapImg, 0, 0, BASE_WIDTH, BASE_HEIGHT);
 
   npcs.forEach(npc => {
-    ctx.drawImage(npc.img, npc.x, npc.y, 32, 32);
+    ctx.drawImage(npc.img, npc.x, npc.y, SPRITE_SIZE, SPRITE_SIZE);
   });
 
   ctx.drawImage(hippoImg, player.x, player.y, player.size, player.size);
@@ -170,20 +207,7 @@ function draw() {
 
 // ===== ループ =====
 function loop() {
-  if (!talking && target) {
-    const dx = target.x - player.x;
-    const dy = target.y - player.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist > 1) {
-      player.x += (dx / dist) * player.speed;
-      player.y += (dy / dist) * player.speed;
-    } else {
-      target = null;
-    }
-
-    checkNPC();
-  }
+  if (currentKey) handleInput(currentKey);
 
   draw();
   requestAnimationFrame(loop);
