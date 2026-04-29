@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>カバの冒険</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -11,17 +12,17 @@
 <!-- タイトル -->
 <div id="titleScreen" class="screen">
   <img id="titleImage" src="assets/title.png" alt="タイトル">
-  <p>クリックしてスタート</p>
+  <p>タップしてスタート</p>
 </div>
 
-<!-- ゲーム画面 -->
+<!-- ゲーム -->
 <div id="gameScreen" class="screen hidden">
 
   <canvas id="gameCanvas" width="320" height="288"></canvas>
 
   <div id="dialogBox" class="hidden"></div>
 
-  <!-- スマホ用コントロール -->
+  <!-- スマホ操作 -->
   <div id="controls">
     <button data-key="ArrowUp">↑</button>
 

@@ -1,13 +1,14 @@
 body {
+  margin: 0;
   background: #9bbc0f;
   font-family: monospace;
   text-align: center;
-  margin: 0;
+  overflow: hidden;
 }
 
-/* 画面切替 */
+/* 画面 */
 .screen {
-  margin-top: 20px;
+  padding-top: 10px;
 }
 
 .hidden {
@@ -21,16 +22,19 @@ body {
   cursor: pointer;
 }
 
-/* Canvas（スマホ対応拡大） */
+/* canvas（スマホ最適化） */
 canvas {
-  width: min(480px, 95vw);
+  width: 100vw;
+  max-width: 480px;
   height: auto;
+  display: block;
+  margin: 0 auto;
   border: 4px solid #0f380f;
   background: #8bac0f;
   image-rendering: pixelated;
 }
 
-/* 会話枠 */
+/* 会話 */
 #dialogBox {
   width: 90%;
   max-width: 320px;
@@ -41,9 +45,12 @@ canvas {
   border: 2px solid #306230;
 }
 
-/* コントロールUI */
+/* 操作UI */
 #controls {
-  margin-top: 10px;
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -62,4 +69,6 @@ canvas {
   background: #0f380f;
   color: #9bbc0f;
   border: 2px solid #306230;
+  user-select: none;
+  touch-action: manipulation;
 }

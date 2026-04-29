@@ -10,11 +10,11 @@ let gameStarted = false;
 let talking = false;
 
 // ===== 画像 =====
-function load(src) {
+const load = (src) => {
   const img = new Image();
   img.src = src;
   return img;
-}
+};
 
 const hippoImg = load("assets/hippo.png");
 const npcImgs = [
@@ -57,26 +57,27 @@ const npcs = [
   }
 ];
 
-// ===== タイトルクリック =====
+// ===== スタート =====
 function startGame() {
   titleScreen.classList.add("hidden");
   gameScreen.classList.remove("hidden");
   gameStarted = true;
-  gameLoop();
+  loop();
 }
 
 titleScreen.addEventListener("click", startGame);
 document.getElementById("titleImage").addEventListener("click", startGame);
 
-// ===== キーボード =====
+// ===== 入力統一（キーボード＋スマホ）=====
 document.addEventListener("keydown", (e) => handleInput(e.key));
 
-// ===== タッチ操作 =====
 document.querySelectorAll("#controls button").forEach(btn => {
   const key = btn.dataset.key;
 
-  btn.addEventListener("click", () => handleInput(key));
-  btn.addEventListener("touchstart", () => handleInput(key));
+  btn.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    handleInput(key);
+  });
 });
 
 // ===== 入力処理 =====
@@ -93,25 +94,25 @@ function handleInput(key) {
     case "ArrowDown": player.y += player.speed; break;
     case "ArrowLeft": player.x -= player.speed; break;
     case "ArrowRight": player.x += player.speed; break;
-    case "Enter": checkInteraction(); break;
+    case "Enter": checkNPC(); break;
   }
 }
 
 // ===== NPC判定 =====
-function checkInteraction() {
+function checkNPC() {
   npcs.forEach(npc => {
     const dx = player.x - npc.x;
     const dy = player.y - npc.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (dist < 24) {
-      showDialog(npc);
+      talk(npc);
     }
   });
 }
 
 // ===== 会話 =====
-function showDialog(npc) {
+function talk(npc) {
   talking = true;
   dialogBox.classList.remove("hidden");
   dialogBox.textContent = npc.text;
@@ -143,7 +144,7 @@ function draw() {
 }
 
 // ===== ループ =====
-function gameLoop() {
+function loop() {
   draw();
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(loop);
 }
