@@ -6,19 +6,13 @@ body {
   overflow: hidden;
 }
 
-.screen {
-  padding-top: 10px;
-}
-
 .hidden {
   display: none;
 }
 
-/* タイトル */
 #titleImage {
   width: min(320px, 90vw);
   image-rendering: pixelated;
-  cursor: pointer;
 }
 
 /* canvas */
@@ -42,7 +36,7 @@ canvas {
   border: 2px solid #306230;
 }
 
-/* 操作UI */
+/* 操作 */
 #controls {
   position: fixed;
   bottom: 10px;
@@ -54,18 +48,16 @@ canvas {
   gap: 5px;
 }
 
-#controls .row {
+.row {
   display: flex;
   gap: 5px;
 }
 
-#controls button {
+button {
   width: 60px;
   height: 60px;
   font-size: 16px;
   background: #0f380f;
   color: #9bbc0f;
   border: 2px solid #306230;
-  user-select: none;
-  touch-action: none;
 }

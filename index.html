@@ -9,14 +9,13 @@
 
 <body>
 
-<!-- タイトル -->
 <div id="titleScreen" class="screen">
-  <img id="titleImage" src="assets/title.png" alt="タイトル">
+  <img id="titleImage" src="assets/title.png">
   <p>タップしてスタート</p>
 </div>
 
-<!-- ゲーム -->
 <div id="gameScreen" class="screen hidden">
+
   <canvas id="gameCanvas"></canvas>
 
   <div id="dialogBox" class="hidden"></div>
@@ -30,9 +29,10 @@
       <button data-key="ArrowRight">→</button>
     </div>
 
-    <button id="talkBtn">話しかける</button>
+    <button id="talkBtn">話す</button>
     <button id="stopBtn">BGM停止</button>
   </div>
+
 </div>
 
 <script src="game.js"></script>
