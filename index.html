@@ -26,6 +26,7 @@ const game = new Phaser.Game(config);
 
 function preload() {
     // 画像や音源の読み込み（パスは自分のファイルに合わせて変更してください）
+    this.load.image('map', 'map.png');　//マップ
     this.load.image('hippo', 'hippo.png'); // 主人公カバ
     this.load.image('npc', 'npc.png');     // 話しかけるキャラ
     this.load.audio('myMusic', 'your_song.mp3'); // あなたが作った曲
