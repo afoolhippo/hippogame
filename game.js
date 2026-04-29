@@ -5,10 +5,14 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const dialogBox = document.getElementById("dialogBox");
 
+// ===== 基本サイズ（これ重要）=====
+const BASE_WIDTH = 320;
+const BASE_HEIGHT = 288;
+
 // ===== 状態 =====
 let gameStarted = false;
 let talking = false;
-let currentKey = null;
+let target = null;
 
 // ===== 画像 =====
 const load = (src) => {
@@ -30,7 +34,7 @@ const player = {
   x: 50,
   y: 50,
   size: 32,
-  speed: 2
+  speed: 1.8
 };
 
 // ===== NPC =====
@@ -58,19 +62,18 @@ const npcs = [
   }
 ];
 
-// ===== キャンバス自動リサイズ =====
+// ===== キャンバスリサイズ（比率維持）=====
 function resizeCanvas() {
-  const scale = window.devicePixelRatio || 1;
-  const width = Math.min(window.innerWidth, 480);
-  const height = width * 0.9;
+  const scale = Math.min(
+    window.innerWidth / BASE_WIDTH,
+    window.innerHeight / BASE_HEIGHT
+  );
 
-  canvas.width = width * scale;
-  canvas.height = height * scale;
+  canvas.width = BASE_WIDTH;
+  canvas.height = BASE_HEIGHT;
 
-  canvas.style.width = width + "px";
-  canvas.style.height = height + "px";
-
-  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  canvas.style.width = BASE_WIDTH * scale + "px";
+  canvas.style.height = BASE_HEIGHT * scale + "px";
 }
 
 window.addEventListener("resize", resizeCanvas);
@@ -87,66 +90,41 @@ function startGame() {
 titleScreen.addEventListener("click", startGame);
 document.getElementById("titleImage").addEventListener("click", startGame);
 
-// ===== キーボード =====
-document.addEventListener("keydown", (e) => {
-  currentKey = e.key;
-});
-
-document.addEventListener("keyup", () => {
-  currentKey = null;
-});
-
-// ===== スマホ操作 =====
-document.querySelectorAll("#controls button").forEach(btn => {
-  const key = btn.dataset.key;
-
-  btn.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    currentKey = key;
-  });
-
-  btn.addEventListener("touchend", () => {
-    currentKey = null;
-  });
-
-  btn.addEventListener("mousedown", () => {
-    currentKey = key;
-  });
-
-  btn.addEventListener("mouseup", () => {
-    currentKey = null;
-  });
-});
-
-// ===== 入力処理 =====
-function handleInput(key) {
+// ===== タップ移動 =====
+canvas.addEventListener("touchstart", (e) => {
   if (!gameStarted) return;
 
-  if (talking && key === "Enter") {
-    closeDialog();
-    return;
-  }
+  const rect = canvas.getBoundingClientRect();
 
-  switch (key) {
-    case "ArrowUp": player.y -= player.speed; break;
-    case "ArrowDown": player.y += player.speed; break;
-    case "ArrowLeft": player.x -= player.speed; break;
-    case "ArrowRight": player.x += player.speed; break;
-    case "Enter": checkNPC(); break;
-  }
-}
+  const x = (e.touches[0].clientX - rect.left) * (BASE_WIDTH / rect.width);
+  const y = (e.touches[0].clientY - rect.top) * (BASE_HEIGHT / rect.height);
 
-// ===== NPC判定 =====
+  target = { x, y };
+});
+
+// PCクリック対応
+canvas.addEventListener("mousedown", (e) => {
+  const rect = canvas.getBoundingClientRect();
+
+  const x = (e.clientX - rect.left) * (BASE_WIDTH / rect.width);
+  const y = (e.clientY - rect.top) * (BASE_HEIGHT / rect.height);
+
+  target = { x, y };
+});
+
+// ===== NPC判定（自動会話）=====
 function checkNPC() {
-  npcs.forEach(npc => {
+  for (let npc of npcs) {
     const dx = player.x - npc.x;
     const dy = player.y - npc.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (dist < 24) {
       talk(npc);
+      target = null;
+      return;
     }
-  });
+  }
 }
 
 // ===== 会話 =====
@@ -163,6 +141,15 @@ function talk(npc) {
   npc.music.play();
 }
 
+// タップで閉じる
+canvas.addEventListener("touchstart", () => {
+  if (talking) closeDialog();
+});
+
+canvas.addEventListener("mousedown", () => {
+  if (talking) closeDialog();
+});
+
 function closeDialog() {
   talking = false;
   dialogBox.classList.add("hidden");
@@ -170,9 +157,9 @@ function closeDialog() {
 
 // ===== 描画 =====
 function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
 
-  ctx.drawImage(mapImg, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(mapImg, 0, 0, BASE_WIDTH, BASE_HEIGHT);
 
   npcs.forEach(npc => {
     ctx.drawImage(npc.img, npc.x, npc.y, 32, 32);
@@ -183,8 +170,19 @@ function draw() {
 
 // ===== ループ =====
 function loop() {
-  if (currentKey) {
-    handleInput(currentKey);
+  if (!talking && target) {
+    const dx = target.x - player.x;
+    const dy = target.y - player.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > 1) {
+      player.x += (dx / dist) * player.speed;
+      player.y += (dy / dist) * player.speed;
+    } else {
+      target = null;
+    }
+
+    checkNPC();
   }
 
   draw();
