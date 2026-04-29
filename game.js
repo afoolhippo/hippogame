@@ -37,9 +37,9 @@ const player = { x: 50, y: 50, speed: 2 };
 
 // ===== NPC =====
 const npcs = [
-  { x:150,y:80,text:"こんにちは！これは1曲目です。",music:new Audio("assets/music1.mp3"),img:npcImgs[0]},
-  { x:200,y:150,text:"いい感じの曲でしょ？",music:new Audio("assets/music2.mp3"),img:npcImgs[1]},
-  { x:80,y:200,text:"最後の曲だよ！",music:new Audio("assets/music3.mp3"),img:npcImgs[2]}
+  { x:150,y:80,text:"茄子を食べたら、健康になれるかな？",music:new Audio("assets/music1.mp3"),img:npcImgs[0]},
+  { x:200,y:150,text:"生姜焼きを食べた僕は、しょうがないと呟いた･･･",music:new Audio("assets/music2.mp3"),img:npcImgs[1]},
+  { x:80,y:200,text:"歯磨きしようぜ！",music:new Audio("assets/music3.mp3"),img:npcImgs[2]}
 ];
 
 // ===== canvas =====
