@@ -3,8 +3,7 @@ let mashCount = 0;
 let timeLeft = 5;
 let countdown = 3;
 
-let phase = "intro"; 
-// intro → select → explain → countdown → play → result
+let phase = "intro"; // intro → select → explain → countdown → play → result
 
 const TARGET_COUNT = 20;
 
@@ -23,52 +22,27 @@ const seCount = new Audio("assets/count.mp3");
 
 [sePush, seWin, seLose, seCount].forEach(a=>a.volume=0.6);
 
-// ===== ボタンUI =====
-const ui = document.createElement("div");
-ui.style.position = "absolute";
-ui.style.bottom = "20px";
-ui.style.left = "50%";
-ui.style.transform = "translateX(-50%)";
-ui.style.display = "none";
-
-ui.innerHTML = `
-  <button id="btnA">決定</button>
-  <button id="btnB">逃げる</button>
-  <button id="mashBtn">連打！！</button>
-`;
-
-document.body.appendChild(ui);
-
-const btnA = document.getElementById("btnA");
-const btnB = document.getElementById("btnB");
-const mashBtn = document.getElementById("mashBtn");
-
-// 初期は非表示
-btnB.style.display = "none";
-mashBtn.style.display = "none";
-
 // ===== 開始 =====
 function startMiniGame(){
   gameState = "minigame";
   phase = "intro";
-  ui.style.display = "block";
-  btnA.style.display = "inline";
-  btnB.style.display = "none";
-  mashBtn.style.display = "none";
+
+  talkBtn.textContent = "決定";
+  stopBtn.textContent = "逃げる";
 }
 
-// ===== ボタン処理 =====
-btnA.onclick = () => {
+// ===== 決定ボタン =====
+talkBtn.onclick = () => {
+
+  if(gameState !== "minigame") return;
 
   if(phase === "intro"){
     phase = "select";
-    btnB.style.display = "inline";
     return;
   }
 
   if(phase === "select"){
     phase = "explain";
-    btnB.style.display = "none";
     return;
   }
 
@@ -78,24 +52,33 @@ btnA.onclick = () => {
     return;
   }
 
-  if(phase === "result"){
+  if(phase === "result_win" || phase === "result_lose"){
     endMiniGame();
   }
 };
 
-btnB.onclick = () => {
-  // 逃げる
-  endMiniGame();
+// ===== 逃げるボタン =====
+stopBtn.onclick = () => {
+
+  if(gameState === "minigame"){
+    endMiniGame();
+    return;
+  }
+
+  // 通常のBGM停止
+  stopAllMusic();
 };
 
-// ===== 連打 =====
-mashBtn.onclick = () => {
+// ===== 連打（画面タップ） =====
+canvas.addEventListener("pointerdown", () => {
+  if(gameState !== "minigame") return;
   if(phase !== "play") return;
 
   mashCount++;
+
   sePush.currentTime = 0;
   sePush.play().catch(()=>{});
-};
+});
 
 // ===== 更新 =====
 function updateMiniGame(){
@@ -114,9 +97,6 @@ function updateMiniGame(){
       phase = "play";
       mashCount = 0;
       timeLeft = 5;
-
-      mashBtn.style.display = "inline";
-      btnA.style.display = "none";
     }
   }
 
@@ -124,8 +104,6 @@ function updateMiniGame(){
     timeLeft -= 1/60;
 
     if(timeLeft <= 0){
-      mashBtn.style.display = "none";
-      btnA.style.display = "inline";
 
       if(mashCount >= TARGET_COUNT){
         phase = "result_win";
@@ -141,8 +119,10 @@ function updateMiniGame(){
 
 // ===== 終了 =====
 function endMiniGame(){
-  ui.style.display = "none";
   gameState = "field";
+
+  talkBtn.textContent = "話す";
+  stopBtn.textContent = "BGM停止";
 }
 
 // ===== 描画 =====
@@ -150,27 +130,25 @@ function drawMiniGame(){
 
   if(gameState !== "minigame") return;
 
-  // ===== 背景 =====
   ctx.fillStyle = "white";
   ctx.fillRect(0,0,BASE_W,BASE_H);
 
   ctx.fillStyle = "black";
   ctx.font = "16px sans-serif";
 
-  // ===== 敵（上部中央）=====
+  // 敵（上部）
   ctx.drawImage(enemyImg, BASE_W/2 - 60, 20, 120, 120);
 
-  // ===== テキスト =====
   if(phase === "intro"){
     ctx.fillText("ぬらりひょんがあらわれた！", 40, 180);
   }
 
   if(phase === "select"){
-    ctx.fillText("戦う？ 逃げる？", 80, 180);
+    ctx.fillText("戦う？（決定） 逃げる（BGM停止）", 20, 180);
   }
 
   if(phase === "explain"){
-    ctx.fillText("5秒以内に20回タップしろ！", 40, 180);
+    ctx.fillText("5秒で20回タップ！", 60, 180);
   }
 
   if(phase === "countdown"){
@@ -181,8 +159,8 @@ function drawMiniGame(){
   if(phase === "play"){
     ctx.fillText("連打しろ！", 110, 160);
 
-    // 時間ゲージ（下）
     let ratio = timeLeft / 5;
+
     ctx.fillRect(60, 220, 200, 10);
     ctx.fillStyle = "gray";
     ctx.fillRect(60, 220, 200 * ratio, 10);

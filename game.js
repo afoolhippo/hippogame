@@ -9,15 +9,22 @@ const BASE_W = 320;
 const BASE_H = 288;
 const SIZE = 48;
 
-// ===== ★超重要：状態（必ずここで定義）=====
 let gameState = "field";
-
 let currentMap = "field";
-let talking = false;
 let key = null;
 
+// ===== SE =====
+const seEnter1 = new Audio("assets/enter1.mp3");
+const seEnter2 = new Audio("assets/enter2.mp3");
+[seEnter1,seEnter2].forEach(a=>a.volume=0.6);
+
+function playSE(a){
+  a.currentTime=0;
+  a.play().catch(()=>{});
+}
+
 // ===== 画像 =====
-const load = src => { const i=new Image(); i.src=src; return i; };
+const load = src => { let i=new Image(); i.src=src; return i; };
 
 const mapField = load("assets/map.png");
 const mapCave  = load("assets/map2.png");
@@ -31,73 +38,27 @@ const npcImgs = [
   load("assets/npc4.png")
 ];
 
-const takarabakoImg = load("assets/takarabako.png");
-
-// ===== 音 =====
-const music1 = new Audio("assets/music1.mp3");
-const music2 = new Audio("assets/music2.mp3");
-const music3 = new Audio("assets/music3.mp3");
-[music1, music2, music3].forEach(a=>a.volume=0.6);
+const takara = load("assets/takarabako.png");
 
 // ===== プレイヤー =====
-const player = { x:140, y:200 };
+const player = {x:140,y:200};
 
 // ===== NPC =====
-const npcsField = [
-  { x:100,y:80,text:"茄子を食べたら、健康になれるかな？",img:npcImgs[0], music:music1 },
-  { x:200,y:150,text:"生姜焼きを食べた僕は、しょうがないと呟いた・・・",img:npcImgs[1], music:music2 },
-  { x:50,y:200,text:"歯磨きしようぜ！",img:npcImgs[2], music:music3 },
+const npcs = [
+  {x:100,y:80,text:"茄子を食べたら、健康になれるかな？",img:npcImgs[0]},
+  {x:200,y:150,text:"生姜焼きを食べた僕は、しょうがないと呟いた・・・",img:npcImgs[1]},
+  {x:50,y:200,text:"歯磨きしようぜ！",img:npcImgs[2]}
 ];
 
-const caveNPC = {
-  x:140,
-  y:120,
-  text:"合言葉はbakanakabaじゃ・・・",
-  img:npcImgs[3]
-};
+const caveNPC = {x:140,y:120,text:"合言葉はbakanakabaじゃ・・・",img:npcImgs[3]};
 
-const treasure = {
-  x: caveNPC.x + 80,
-  y: caveNPC.y - 30,
-  w: SIZE,
-  h: SIZE
-};
-
-function getNPCs(){
-  return currentMap==="field" ? npcsField : [caveNPC];
-}
+const treasure = {x:220,y:80,w:SIZE,h:SIZE};
 
 // ===== ぬらりひょん =====
-const nurarihyon = {
-  x: 220,
-  y: 80,
-  w: SIZE,
-  h: SIZE
-};
+const enemy = {x:220,y:80,w:SIZE,h:SIZE};
 
-// ===== 洞窟 =====
-const caveEntrance = {
-  x: BASE_W/2 - SIZE/2,
-  y: 10,
-  w: SIZE,
-  h: SIZE
-};
-
-const caveSpawn = {
-  x: BASE_W/2 - SIZE/2,
-  y: BASE_H - SIZE - 10
-};
-
-// ===== リサイズ =====
-function resize(){
-  const scale = Math.min(innerWidth/BASE_W, innerHeight/BASE_H);
-  canvas.width=BASE_W;
-  canvas.height=BASE_H;
-  canvas.style.width=BASE_W*scale+"px";
-  canvas.style.height=BASE_H*scale+"px";
-}
-addEventListener("resize",resize);
-resize();
+// ===== 洞窟入口（小さく調整）=====
+const cave = {x:150,y:10,w:24,h:24};
 
 // ===== 入力 =====
 document.addEventListener("keydown",e=>key=e.key);
@@ -108,150 +69,90 @@ document.querySelectorAll("[data-key]").forEach(b=>{
   b.onpointerup=()=>key=null;
 });
 
-// ===== BGM停止 =====
-function stopAllMusic(){
-  [music1, music2, music3].forEach(a=>{
-    a.pause();
-    a.currentTime=0;
-  });
-}
-stopBtn.onclick = stopAllMusic;
+// ===== タイトル =====
+document.getElementById("titleImage").onclick=()=>{
+  playSE(seEnter1);
 
-// ===== 当たり判定 =====
-function isHit(a, b){
-  return (
-    a.x < b.x + b.w &&
-    a.x + SIZE > b.x &&
-    a.y < b.y + b.h &&
-    a.y + SIZE > b.y
-  );
-}
+  document.getElementById("titleScreen").classList.add("hidden");
+  document.getElementById("gameScreen").classList.remove("hidden");
+
+  loop();
+};
 
 // ===== 会話 =====
 talkBtn.onclick=()=>{
 
-  if(talking){
-    dialogBox.classList.add("hidden");
-    talking=false;
-    talkBtn.textContent="話す";
-    return;
-  }
+  if(gameState==="minigame") return;
 
   // 宝箱
-  if(currentMap==="cave" && isHit(player, treasure)){
-
+  if(currentMap==="cave" && hit(player,treasure)){
     if(!hasKey){
-      dialogBox.textContent="鍵がかかっている・・・";
-      dialogBox.classList.remove("hidden");
-      talking=true;
+      show("鍵がかかっている・・・");
       return;
     }
-
-    dialogBox.innerHTML=`
-    あなたはa fool hippo全曲視聴サイトへの入口を見つけました！<br>
-    <a href="https://bakanakaba.wixsite.com/afoolhippo/portfolio" target="_blank" style="color:white;">▶サイトへ</a>
-    `;
-    dialogBox.classList.remove("hidden");
-    talking=true;
+    show("サイト発見！↓\nhttps://bakanakaba.wixsite.com/afoolhippo/portfolio");
     return;
   }
 
-  // NPC
-  for(let n of getNPCs()){
-    const dx=(player.x+SIZE/2)-(n.x+SIZE/2);
-    const dy=(player.y+SIZE/2)-(n.y+SIZE/2);
-    if(Math.sqrt(dx*dx+dy*dy)<40){
+  let list = currentMap==="field"?npcs:[caveNPC];
 
-      dialogBox.textContent=n.text;
-      dialogBox.classList.remove("hidden");
-      talking=true;
-
-      stopAllMusic();
-      if(n.music){
-        n.music.currentTime=0;
-        n.music.play().catch(()=>{});
-      }
-
-      return;
+  for(let n of list){
+    if(dist(player,n)<40){
+      show(n.text);
     }
   }
 };
 
-// ===== 移動制限 =====
-function clampPlayer(){
-  player.x=Math.max(0,Math.min(BASE_W-SIZE,player.x));
-  player.y=Math.max(0,Math.min(BASE_H-SIZE,player.y));
+function show(text){
+  dialogBox.textContent=text;
+  dialogBox.classList.remove("hidden");
+  setTimeout(()=>dialogBox.classList.add("hidden"),2000);
 }
 
-// ===== マップ遷移 =====
-function checkMapChange(){
-
-  // フィールド → 洞窟
-  if(currentMap==="field" && isHit(player, caveEntrance)){
-    currentMap="cave";
-    player.x=caveSpawn.x;
-    player.y=caveSpawn.y;
-  }
-
-  // 洞窟 → フィールド
-  if(currentMap==="cave" && player.y > BASE_H - SIZE - 5){
-    currentMap="field";
-    player.x=caveEntrance.x;
-    player.y=caveEntrance.y + 60;
-  }
+// ===== 判定 =====
+function hit(a,b){
+  return a.x<b.x+b.w && a.x+SIZE>b.x && a.y<b.y+b.h && a.y+SIZE>b.y;
 }
 
-// ===== 描画 =====
-function draw(){
-
-  ctx.clearRect(0,0,BASE_W,BASE_H);
-
-  ctx.drawImage(currentMap==="field"?mapField:mapCave,0,0,BASE_W,BASE_H);
-
-  if(currentMap==="field"){
-    ctx.drawImage(caveIcon,caveEntrance.x,caveEntrance.y,SIZE,SIZE);
-  }
-
-  getNPCs().forEach(n=>{
-    ctx.drawImage(n.img,n.x,n.y,SIZE,SIZE);
-  });
-
-  // ぬらりひょん
-  if(currentMap==="field"){
-    ctx.fillStyle="purple";
-    ctx.fillRect(nurarihyon.x,nurarihyon.y,SIZE,SIZE);
-  }
-
-  if(currentMap==="cave"){
-    ctx.drawImage(takarabakoImg,treasure.x,treasure.y,SIZE,SIZE);
-  }
-
-  ctx.drawImage(hippo,player.x,player.y,SIZE,SIZE);
+function dist(a,b){
+  let dx=a.x-b.x, dy=a.y-b.y;
+  return Math.sqrt(dx*dx+dy*dy);
 }
 
 // ===== ループ =====
 function loop(){
 
-  // フィールド処理
   if(gameState==="field"){
 
-    if(!talking && key){
-      if(key==="ArrowUp") player.y-=2;
-      if(key==="ArrowDown") player.y+=2;
-      if(key==="ArrowLeft") player.x-=2;
-      if(key==="ArrowRight") player.x+=2;
+    if(key){
+      if(key==="ArrowUp")player.y-=2;
+      if(key==="ArrowDown")player.y+=2;
+      if(key==="ArrowLeft")player.x-=2;
+      if(key==="ArrowRight")player.x+=2;
     }
 
-    // ミニゲーム開始
-    if(currentMap==="field" && isHit(player,nurarihyon)){
+    // 洞窟
+    if(currentMap==="field" && hit(player,cave)){
+      playSE(seEnter2);
+      currentMap="cave";
+      player.x=140; player.y=220;
+    }
+
+    if(currentMap==="cave" && player.y>260){
+      playSE(seEnter2);
+      currentMap="field";
+      player.x=150; player.y=60;
+    }
+
+    // ミニゲーム
+    if(currentMap==="field" && hit(player,enemy)){
       startMiniGame();
     }
 
-    clampPlayer();
-    checkMapChange();
+    player.x=Math.max(0,Math.min(BASE_W-SIZE,player.x));
+    player.y=Math.max(0,Math.min(BASE_H-SIZE,player.y));
   }
 
-  // ミニゲーム処理
   if(gameState==="minigame"){
     updateMiniGame();
   }
@@ -262,9 +163,25 @@ function loop(){
   requestAnimationFrame(loop);
 }
 
-// ===== スタート =====
-document.getElementById("titleImage").onclick=()=>{
-  document.getElementById("titleScreen").classList.add("hidden");
-  document.getElementById("gameScreen").classList.remove("hidden");
-  loop();
-};
+// ===== 描画 =====
+function draw(){
+
+  ctx.clearRect(0,0,BASE_W,BASE_H);
+
+  ctx.drawImage(currentMap==="field"?mapField:mapCave,0,0,BASE_W,BASE_H);
+
+  if(currentMap==="field"){
+    ctx.drawImage(caveIcon,cave.x,cave.y,24,24);
+    ctx.fillStyle="purple";
+    ctx.fillRect(enemy.x,enemy.y,SIZE,SIZE);
+  }
+
+  let list = currentMap==="field"?npcs:[caveNPC];
+  list.forEach(n=>ctx.drawImage(n.img,n.x,n.y,SIZE,SIZE));
+
+  if(currentMap==="cave"){
+    ctx.drawImage(takara,treasure.x,treasure.y,SIZE,SIZE);
+  }
+
+  ctx.drawImage(hippo,player.x,player.y,SIZE,SIZE);
+}
