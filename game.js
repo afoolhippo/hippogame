@@ -71,11 +71,12 @@ const caveSpawn = {
   y: BASE_H - SIZE - 10
 };
 
+// ★ 出口判定を小さくする（ここが今回の修正）
 const caveExit = {
-  x: caveSpawn.x,
-  y: caveSpawn.y,
-  w: SIZE,
-  h: SIZE
+  x: caveSpawn.x + 10,
+  y: caveSpawn.y + 10,
+  w: SIZE - 20,
+  h: SIZE - 20
 };
 
 // ===== リサイズ =====
