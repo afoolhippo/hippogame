@@ -12,7 +12,8 @@ let currentMap = "field";
 let talking = false;
 let key = null;
 let mapChangeCooldown = 0;
-let justEnteredCave = 0; // ★追加
+let justEnteredCave = 0;
+let canExitCave = false;
 
 // ===== 画像 =====
 const load = src => { const i=new Image(); i.src=src; return i; };
@@ -28,13 +29,12 @@ const npcImgs = [
   load("assets/npc3.png")
 ];
 
-// ===== 音（BGM）=====
+// ===== 音 =====
 const music1 = new Audio("assets/music1.mp3");
 const music2 = new Audio("assets/music2.mp3");
 const music3 = new Audio("assets/music3.mp3");
 [music1, music2, music3].forEach(a=>a.volume = 0.6);
 
-// ===== SE =====
 const seStart = new Audio("assets/enter.mp3");
 const seMove  = new Audio("assets/enter2.mp3");
 [seStart, seMove].forEach(a=>a.volume = 0.6);
@@ -65,7 +65,7 @@ const caveEntrance = {
   h: SIZE
 };
 
-// ===== 洞窟内の出入口（同じ位置）=====
+// ===== 洞窟内の出入口 =====
 const caveSpawn = {
   x: BASE_W/2 - SIZE/2,
   y: BASE_H - SIZE - 10
@@ -166,13 +166,14 @@ function checkMapChange(){
     seMove.cloneNode().play().catch(()=>{});
 
     mapChangeCooldown = 20;
-    justEnteredCave = 30; // ★これが効く
+    justEnteredCave = 30;
+    canExitCave = false;
   }
 
-  // 洞窟 → フィールド（★条件追加）
+  // 洞窟 → フィールド
   else if(
     currentMap==="cave" &&
-    justEnteredCave === 0 &&
+    canExitCave &&
     isHit(player, caveExit)
   ){
     currentMap = "field";
@@ -223,7 +224,14 @@ function loop(){
   }
 
   if(mapChangeCooldown > 0) mapChangeCooldown--;
-  if(justEnteredCave > 0) justEnteredCave--; // ★追加
+  if(justEnteredCave > 0) justEnteredCave--;
+
+  // ★ 少し動いたら出口有効
+  if(currentMap==="cave"){
+    if(Math.abs(player.y - caveSpawn.y) > 5){
+      canExitCave = true;
+    }
+  }
 
   clampPlayer();
   checkMapChange();
@@ -235,7 +243,6 @@ function loop(){
 // ===== スタート =====
 document.getElementById("titleImage").onclick=()=>{
 
-  // 音声ロック解除（BGMのみ）
   [music1, music2, music3].forEach(a=>{
     a.play().then(()=>a.pause()).catch(()=>{});
   });
