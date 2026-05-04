@@ -12,6 +12,7 @@ let currentMap = "field";
 let talking = false;
 let key = null;
 let mapChangeCooldown = 0;
+let justEnteredCave = 0; // ★追加
 
 // ===== 画像 =====
 const load = src => { const i=new Image(); i.src=src; return i; };
@@ -31,15 +32,11 @@ const npcImgs = [
 const music1 = new Audio("assets/music1.mp3");
 const music2 = new Audio("assets/music2.mp3");
 const music3 = new Audio("assets/music3.mp3");
-
-// ★ 音量60%
 [music1, music2, music3].forEach(a=>a.volume = 0.6);
 
 // ===== SE =====
 const seStart = new Audio("assets/enter.mp3");
 const seMove  = new Audio("assets/enter2.mp3");
-
-// ★ 音量60%
 [seStart, seMove].forEach(a=>a.volume = 0.6);
 
 // ===== プレイヤー =====
@@ -60,7 +57,7 @@ function getNPCs(){
   return currentMap==="field"?npcsField:npcsCave;
 }
 
-// ===== 洞窟入口（フィールド側）=====
+// ===== 洞窟入口 =====
 const caveEntrance = {
   x: BASE_W/2 - SIZE/2,
   y: 10,
@@ -68,7 +65,7 @@ const caveEntrance = {
   h: SIZE
 };
 
-// ===== 洞窟内の出入口（★初期配置位置と一致させる）=====
+// ===== 洞窟内の出入口（同じ位置）=====
 const caveSpawn = {
   x: BASE_W/2 - SIZE/2,
   y: BASE_H - SIZE - 10
@@ -163,18 +160,21 @@ function checkMapChange(){
   if(currentMap==="field" && isHit(player, caveEntrance)){
     currentMap = "cave";
 
-    // ★ 洞窟内スタート位置
     player.x = caveSpawn.x;
     player.y = caveSpawn.y;
 
-    // ★ SE（cloneで途切れ防止）
     seMove.cloneNode().play().catch(()=>{});
 
     mapChangeCooldown = 20;
+    justEnteredCave = 30; // ★これが効く
   }
 
-  // 洞窟 → フィールド
-  else if(currentMap==="cave" && isHit(player, caveExit)){
+  // 洞窟 → フィールド（★条件追加）
+  else if(
+    currentMap==="cave" &&
+    justEnteredCave === 0 &&
+    isHit(player, caveExit)
+  ){
     currentMap = "field";
 
     player.x = caveEntrance.x;
@@ -223,6 +223,7 @@ function loop(){
   }
 
   if(mapChangeCooldown > 0) mapChangeCooldown--;
+  if(justEnteredCave > 0) justEnteredCave--; // ★追加
 
   clampPlayer();
   checkMapChange();
@@ -234,12 +235,11 @@ function loop(){
 // ===== スタート =====
 document.getElementById("titleImage").onclick=()=>{
 
-  // ★ 音声ロック解除（BGMのみ）
+  // 音声ロック解除（BGMのみ）
   [music1, music2, music3].forEach(a=>{
     a.play().then(()=>a.pause()).catch(()=>{});
   });
 
-  // ★ スタートSE
   seStart.cloneNode().play().catch(()=>{});
 
   document.getElementById("titleScreen").classList.add("hidden");
