@@ -27,7 +27,7 @@ const npcImgs = [
   load("assets/npc1.png"),
   load("assets/npc2.png"),
   load("assets/npc3.png"),
-  load("assets/npc4.png") // ★追加
+  load("assets/npc4.png")
 ];
 
 const takarabakoImg = load("assets/takarabako.png");
@@ -40,20 +40,20 @@ const music3 = new Audio("assets/music3.mp3");
 
 const seStart = new Audio("assets/enter.mp3");
 const seMove  = new Audio("assets/enter2.mp3");
-const seGet   = new Audio("assets/get.mp3"); // ★宝箱
+const seGet   = new Audio("assets/get.mp3");
 [seStart, seMove, seGet].forEach(a=>a.volume = 0.6);
 
 // ===== プレイヤー =====
 const player = { x:140, y:200 };
 
-// ===== NPC =====
+// ===== NPC（セリフ変更済み）=====
 const npcsField = [
-  { x:100,y:80,text:"外の住人A",img:npcImgs[0], music:music1 },
-  { x:200,y:150,text:"外の住人B",img:npcImgs[1], music:music2 },
-  { x:50,y:200,text:"外の住人C",img:npcImgs[2], music:music3 },
+  { x:100,y:80,text:"茄子を食べたら、健康になれるかな？",img:npcImgs[0], music:music1 },
+  { x:200,y:150,text:"生姜焼きを食べた僕は、しょうがないと呟いた・・・",img:npcImgs[1], music:music2 },
+  { x:50,y:200,text:"歯磨きしようぜ！",img:npcImgs[2], music:music3 },
 ];
 
-// ★ 洞窟NPC（npc4）
+// ===== 洞窟NPC =====
 const caveNPC = {
   x:140,
   y:120,
@@ -61,9 +61,9 @@ const caveNPC = {
   img:npcImgs[3]
 };
 
-// ★ 宝箱（NPCの右上）
+// ★ 宝箱（少し右へ調整）
 const treasure = {
-  x: caveNPC.x + 40,
+  x: caveNPC.x + 60, // ←ここ調整（+40 → +60）
   y: caveNPC.y - 40,
   w: SIZE,
   h: SIZE
@@ -139,12 +139,15 @@ talkBtn.onpointerdown=()=>{
     return;
   }
 
-  // ★ 宝箱判定（洞窟のみ）
+  // 宝箱
   if(currentMap==="cave" && isHit(player, treasure)){
     talking = true;
+
     dialogBox.innerHTML = `
       あなたはa fool hippo全曲視聴サイトへの入口を見つけました！<br>
-      <a href="https://bakanakaba.wixsite.com/afoolhippo/portfolio" target="_blank">
+      <a href="https://bakanakaba.wixsite.com/afoolhippo/portfolio" 
+         target="_blank" 
+         style="color:white;">
       ▶ サイトへ
       </a>
     `;
@@ -152,7 +155,6 @@ talkBtn.onpointerdown=()=>{
 
     seGet.cloneNode().play().catch(()=>{});
 
-    // ★ 自動遷移（2秒後）
     setTimeout(()=>{
       window.location.href = "https://bakanakaba.wixsite.com/afoolhippo/portfolio";
     },2000);
@@ -244,12 +246,10 @@ function draw(){
     ctx.drawImage(caveIcon, caveEntrance.x, caveEntrance.y, SIZE, SIZE);
   }
 
-  // NPC
   getNPCs().forEach(n=>{
     ctx.drawImage(n.img,n.x,n.y,SIZE,SIZE);
   });
 
-  // ★ 宝箱
   if(currentMap==="cave"){
     ctx.drawImage(takarabakoImg, treasure.x, treasure.y, SIZE, SIZE);
   }
