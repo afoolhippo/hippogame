@@ -1,135 +1,94 @@
-// ===== 要素 =====
-const titleScreen = document.getElementById("titleScreen");
-const gameScreen = document.getElementById("gameScreen");
+// ===== 基本 =====
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const dialogBox = document.getElementById("dialogBox");
 const talkBtn = document.getElementById("talkBtn");
-const stopBtn = document.getElementById("stopBtn");
 
-// ===== サイズ =====
 const BASE_W = 320;
 const BASE_H = 288;
 const SIZE = 48;
 
-// ===== 状態 =====
-let gameStarted = false;
+let currentMap = "field";
 let talking = false;
-let currentKey = null;
+let key = null;
 
 // ===== 画像 =====
-const load = (src) => {
-  const img = new Image();
-  img.src = src;
-  return img;
-};
+const load = src => { const i=new Image(); i.src=src; return i; };
 
+const mapField = load("assets/map.png");
+const mapCave = load("assets/map2.png");
+const caveIcon = load("assets/doukutsu.png");
 const hippo = load("assets/hippo.png");
-const mapImg = load("assets/map.png");
-const npcImgs = [
-  load("assets/npc1.png"),
-  load("assets/npc2.png"),
-  load("assets/npc3.png")
-];
+const npcImg = load("assets/npc1.png");
 
 // ===== プレイヤー =====
-const player = { x: 50, y: 50, speed: 2 };
+const player = { x:140, y:200 };
 
 // ===== NPC =====
-const npcs = [
-  { x:150,y:80,text:"茄子を食べたら、健康になれるかな？",music:new Audio("assets/music1.mp3"),img:npcImgs[0]},
-  { x:200,y:150,text:"生姜焼きを食べた僕は、しょうがないと呟いた･･･",music:new Audio("assets/music2.mp3"),img:npcImgs[1]},
-  { x:80,y:200,text:"歯磨きしようぜ！",music:new Audio("assets/music3.mp3"),img:npcImgs[2]}
+const npcsField = [
+  { x:150,y:80,text:"ここはフィールドだよ",img:npcImg },
 ];
 
-// ===== canvas =====
-function resize(){
-  const scale = Math.min(window.innerWidth/BASE_W, window.innerHeight/BASE_H);
-  canvas.width = BASE_W;
-  canvas.height = BASE_H;
-  canvas.style.width = BASE_W*scale+"px";
-  canvas.style.height = BASE_H*scale+"px";
+const npcsCave = [
+  { x:140,y:100,text:"洞窟へようこそ",img:npcImg },
+];
+
+function getNPCs(){
+  return currentMap==="field"?npcsField:npcsCave;
 }
-window.addEventListener("resize",resize);
+
+// ===== 洞窟入口（上部中央）=====
+const caveEntrance = {
+  x: BASE_W/2 - 24,
+  y: 20,
+  w: 48,
+  h: 48
+};
+
+// ===== 洞窟出口（中央）=====
+const caveExit = {
+  x: BASE_W/2 - 24,
+  y: BASE_H/2 - 24,
+  w: 48,
+  h: 48
+};
+
+// ===== リサイズ =====
+function resize(){
+  const scale = Math.min(innerWidth/BASE_W, innerHeight/BASE_H);
+  canvas.width=BASE_W;
+  canvas.height=BASE_H;
+  canvas.style.width=BASE_W*scale+"px";
+  canvas.style.height=BASE_H*scale+"px";
+}
+addEventListener("resize",resize);
 resize();
 
-// ===== スタート =====
-function start(){
-  titleScreen.classList.add("hidden");
-  gameScreen.classList.remove("hidden");
-  gameStarted = true;
+// ===== 入力 =====
+document.addEventListener("keydown",e=>key=e.key);
+document.addEventListener("keyup",()=>key=null);
 
-  // ★音声ロック解除
-  npcs.forEach(n=>{
-    n.music.play().then(()=>n.music.pause()).catch(()=>{});
-  });
-
-  loop();
-}
-titleScreen.addEventListener("pointerdown",start);
-
-// ===== 移動 =====
-document.addEventListener("keydown",e=>currentKey=e.key);
-document.addEventListener("keyup",()=>currentKey=null);
-
-document.querySelectorAll("[data-key]").forEach(btn=>{
-  btn.addEventListener("pointerdown",()=>{
-    currentKey = btn.dataset.key;
-  });
-  btn.addEventListener("pointerup",()=>{
-    currentKey = null;
-  });
+document.querySelectorAll("[data-key]").forEach(b=>{
+  b.onpointerdown=()=>key=b.dataset.key;
+  b.onpointerup=()=>key=null;
 });
 
-// ===== 会話ボタン =====
-talkBtn.addEventListener("pointerdown",()=>{
-  if(!gameStarted) return;
+// ===== 会話 =====
+talkBtn.onpointerdown=()=>{
+  if(talking){ closeDialog(); return; }
 
-  if(talking){
-    closeDialog();
-  }else{
-    checkNPC();
-  }
-});
-
-// ===== BGM停止 =====
-stopBtn.addEventListener("pointerdown",stopMusic);
-
-function stopMusic(){
-  npcs.forEach(n=>{
-    n.music.pause();
-    n.music.currentTime = 0;
-  });
-}
-
-// ===== NPC判定 =====
-function checkNPC(){
-  for(let n of npcs){
+  for(let n of getNPCs()){
     const dx=(player.x+SIZE/2)-(n.x+SIZE/2);
     const dy=(player.y+SIZE/2)-(n.y+SIZE/2);
-    const d=Math.sqrt(dx*dx+dy*dy);
-
-    if(d<40){
-      talk(n);
+    if(Math.sqrt(dx*dx+dy*dy)<40){
+      talking=true;
+      dialogBox.textContent=n.text;
+      dialogBox.classList.remove("hidden");
+      talkBtn.textContent="とじる";
       return;
     }
   }
-}
-
-// ===== 会話 =====
-function talk(n){
-  talking=true;
-  dialogBox.classList.remove("hidden");
-  dialogBox.textContent=n.text;
-
-  stopMusic();
-
-  // ★確実再生
-  n.music.currentTime=0;
-  n.music.play().catch(()=>{});
-
-  talkBtn.textContent="とじる";
-}
+};
 
 function closeDialog(){
   talking=false;
@@ -137,28 +96,96 @@ function closeDialog(){
   talkBtn.textContent="話す";
 }
 
+// ===== マップ切り替え =====
+function checkMapChange(){
+
+  // フィールド → 洞窟
+  if(currentMap==="field"){
+    if(
+      player.x < caveEntrance.x + caveEntrance.w &&
+      player.x + SIZE > caveEntrance.x &&
+      player.y < caveEntrance.y + caveEntrance.h &&
+      player.y + SIZE > caveEntrance.y
+    ){
+      currentMap = "cave";
+      player.x = BASE_W/2 - SIZE/2;
+      player.y = BASE_H/2 - SIZE/2;
+    }
+  }
+
+  // 洞窟 → フィールド
+  if(currentMap==="cave"){
+    if(
+      player.x < caveExit.x + caveExit.w &&
+      player.x + SIZE > caveExit.x &&
+      player.y < caveExit.y + caveExit.h &&
+      player.y + SIZE > caveExit.y
+    ){
+      currentMap = "field";
+      player.x = BASE_W/2 - SIZE/2;
+      player.y = 80;
+    }
+  }
+}
+
+// ===== 画面外制限 =====
+function clampPlayer(){
+  player.x = Math.max(0, Math.min(BASE_W - SIZE, player.x));
+  player.y = Math.max(0, Math.min(BASE_H - SIZE, player.y));
+}
+
 // ===== 描画 =====
 function draw(){
   ctx.clearRect(0,0,BASE_W,BASE_H);
 
-  ctx.drawImage(mapImg,0,0,BASE_W,BASE_H);
+  // マップ
+  ctx.drawImage(
+    currentMap==="field"?mapField:mapCave,
+    0,0,BASE_W,BASE_H
+  );
 
-  npcs.forEach(n=>{
+  // 洞窟アイコン（フィールドのみ）
+  if(currentMap==="field"){
+    ctx.drawImage(caveIcon, caveEntrance.x, caveEntrance.y, 48, 48);
+  }
+
+  // NPC
+  getNPCs().forEach(n=>{
     ctx.drawImage(n.img,n.x,n.y,SIZE,SIZE);
   });
 
+  // プレイヤー
   ctx.drawImage(hippo,player.x,player.y,SIZE,SIZE);
+
+  // デバッグ表示（必要ならON）
+  /*
+  ctx.strokeStyle="red";
+  ctx.strokeRect(caveEntrance.x,caveEntrance.y,caveEntrance.w,caveEntrance.h);
+  ctx.strokeStyle="blue";
+  ctx.strokeRect(caveExit.x,caveExit.y,caveExit.w,caveExit.h);
+  */
 }
 
 // ===== ループ =====
 function loop(){
-  if(!talking && currentKey){
-    if(currentKey==="ArrowUp") player.y-=2;
-    if(currentKey==="ArrowDown") player.y+=2;
-    if(currentKey==="ArrowLeft") player.x-=2;
-    if(currentKey==="ArrowRight") player.x+=2;
+
+  if(!talking && key){
+    if(key==="ArrowUp") player.y-=2;
+    if(key==="ArrowDown") player.y+=2;
+    if(key==="ArrowLeft") player.x-=2;
+    if(key==="ArrowRight") player.x+=2;
   }
 
+  clampPlayer();      // ★ 画面外防止
+  checkMapChange();   // ★ マップ切り替え
   draw();
+
   requestAnimationFrame(loop);
 }
+
+// ===== スタート =====
+document.getElementById("titleImage").onclick=()=>{
+  document.getElementById("titleScreen").classList.add("hidden");
+  document.getElementById("gameScreen").classList.remove("hidden");
+  loop();
+};
