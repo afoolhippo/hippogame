@@ -32,9 +32,15 @@ const music1 = new Audio("assets/music1.mp3");
 const music2 = new Audio("assets/music2.mp3");
 const music3 = new Audio("assets/music3.mp3");
 
+// ★ 音量60%
+[music1, music2, music3].forEach(a=>a.volume = 0.6);
+
 // ===== SE =====
 const seStart = new Audio("assets/enter.mp3");
 const seMove  = new Audio("assets/enter2.mp3");
+
+// ★ 音量60%
+[seStart, seMove].forEach(a=>a.volume = 0.6);
 
 // ===== プレイヤー =====
 const player = { x:140, y:200 };
@@ -54,7 +60,7 @@ function getNPCs(){
   return currentMap==="field"?npcsField:npcsCave;
 }
 
-// ===== 洞窟入口（上中央）=====
+// ===== 洞窟入口（フィールド側）=====
 const caveEntrance = {
   x: BASE_W/2 - SIZE/2,
   y: 10,
@@ -62,10 +68,15 @@ const caveEntrance = {
   h: SIZE
 };
 
-// ===== 洞窟出口（中央）=====
-const caveExit = {
+// ===== 洞窟内の出入口（★初期配置位置と一致させる）=====
+const caveSpawn = {
   x: BASE_W/2 - SIZE/2,
-  y: BASE_H/2 - SIZE/2,
+  y: BASE_H - SIZE - 10
+};
+
+const caveExit = {
+  x: caveSpawn.x,
+  y: caveSpawn.y,
   w: SIZE,
   h: SIZE
 };
@@ -152,12 +163,12 @@ function checkMapChange(){
   if(currentMap==="field" && isHit(player, caveEntrance)){
     currentMap = "cave";
 
-    player.x = BASE_W/2 - SIZE/2;
-    player.y = BASE_H - SIZE - 10;
+    // ★ 洞窟内スタート位置
+    player.x = caveSpawn.x;
+    player.y = caveSpawn.y;
 
-    // SE
-    seMove.currentTime = 0;
-    seMove.play().catch(()=>{});
+    // ★ SE（cloneで途切れ防止）
+    seMove.cloneNode().play().catch(()=>{});
 
     mapChangeCooldown = 20;
   }
@@ -169,9 +180,7 @@ function checkMapChange(){
     player.x = caveEntrance.x;
     player.y = caveEntrance.y + 60;
 
-    // SE
-    seMove.currentTime = 0;
-    seMove.play().catch(()=>{});
+    seMove.cloneNode().play().catch(()=>{});
 
     mapChangeCooldown = 20;
   }
@@ -225,14 +234,13 @@ function loop(){
 // ===== スタート =====
 document.getElementById("titleImage").onclick=()=>{
 
-  // ★ 音声ロック解除（スマホ対策）
-  [music1, music2, music3, seStart, seMove].forEach(a=>{
+  // ★ 音声ロック解除（BGMのみ）
+  [music1, music2, music3].forEach(a=>{
     a.play().then(()=>a.pause()).catch(()=>{});
   });
 
   // ★ スタートSE
-  seStart.currentTime = 0;
-  seStart.play().catch(()=>{});
+  seStart.cloneNode().play().catch(()=>{});
 
   document.getElementById("titleScreen").classList.add("hidden");
   document.getElementById("gameScreen").classList.remove("hidden");
