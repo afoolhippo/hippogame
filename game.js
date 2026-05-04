@@ -10,7 +10,7 @@ const BASE_H = 288;
 const SIZE = 48;
 
 let currentMap = "field";
-let gameMode = "map"; 
+let gameMode = "map";
 // map / startFade / encounterIntro / battle / battleMessage / treasureOpen / clear
 
 let talking = false;
@@ -19,7 +19,7 @@ let mapChangeCooldown = 0;
 let justEnteredCave = 0;
 let canExitCave = false;
 
-// ===== 鍵・ぬらりひょん =====
+// ===== カギ・ぬらりひょん =====
 let hasKey = false;
 let nurarihyonDefeated = false;
 
@@ -76,13 +76,15 @@ const seGet   = new Audio("assets/get.mp3");
 const seTap   = new Audio("assets/tap.mp3");
 const seNurarihyon = new Audio("assets/nurarihyon.mp3");
 const seFoot  = new Audio("assets/foot.mp3");
+const seClear = new Audio("assets/clear.mp3");
 
-[music1, music2, music3, seStart, seMove, seGet, seTap, seNurarihyon, seFoot].forEach(a => {
+[music1, music2, music3, seStart, seMove, seGet, seTap, seNurarihyon, seFoot, seClear].forEach(a => {
   a.volume = 0.6;
 });
 
 seNurarihyon.volume = 0.7;
 seFoot.volume = 0.35;
+seClear.volume = 0.7;
 
 // ===== プレイヤー =====
 const player = { x: 140, y: 200 };
@@ -119,7 +121,7 @@ const caveNPC = {
   x:140,
   y:120,
   text:"合言葉はbakanakabaじゃ・・・",
-  afterText:"そのカギなら、宝箱が開くかもしれんぞ・・・",
+  afterText:"合言葉はbakanakabaじゃ・・・忘れるでないぞ。",
   img:npcImgs[3]
 };
 
@@ -233,7 +235,9 @@ function startEncounterIntro(){
   talking = false;
   closeDialog();
   stopAllMusic();
-  encounterIntroTimer = 60;
+
+  // 約1.5秒
+  encounterIntroTimer = 90;
 }
 
 function updateEncounterIntro(){
@@ -413,7 +417,7 @@ talkBtn.onpointerdown = () => {
     talking = true;
 
     if (!hasKey) {
-      dialogBox.textContent = "鍵がかかっている……どこかにカギを持つ者がいるようだ。";
+      dialogBox.textContent = "カギがかかっている……どこかにカギを持つ者がいるようだ。";
       dialogBox.classList.remove("hidden");
       talkBtn.textContent = "とじる";
       return;
@@ -421,10 +425,11 @@ talkBtn.onpointerdown = () => {
 
     stopAllMusic();
 
-    seGet.cloneNode().play().catch(() => {});
+    seClear.currentTime = 0;
+    seClear.play().catch(() => {});
 
     gameMode = "treasureOpen";
-    treasureOpenTimer = 150;
+    treasureOpenTimer = 180;
 
     dialogBox.textContent = "カチャ……宝箱が開いた！";
     dialogBox.classList.remove("hidden");
@@ -474,7 +479,12 @@ function updateTreasureOpen(){
   if (treasureOpenTimer <= 0) {
     gameMode = "clear";
 
-    dialogBox.textContent = "ゲームクリア！ 画面をタップしてサイトへ";
+    dialogBox.innerHTML =
+      "ゲームクリア！<br>" +
+      "a fool hippo 全曲視聴サイトへ<br>" +
+      "制作：a fool hippo<br>" +
+      "画面をタップしてサイトへ";
+
     dialogBox.classList.remove("hidden");
 
     talkBtn.textContent = "サイトへ";
