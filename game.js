@@ -185,6 +185,7 @@ function startBattle(){
 // ===== ミニゲーム中タップ =====
 canvas.addEventListener("pointerdown", () => {
   if (gameMode !== "battle") return;
+
   battleTapCount++;
 
   if (battleTapCount >= 20) {
@@ -229,8 +230,10 @@ function updateBattleMessage(){
   if (battleMessageTimer <= 0) {
     gameMode = "map";
 
-    // 戦闘終了後、即再接触しないよう少し位置を戻す
-    player.y += 40;
+    // 戦闘終了後、ぬらりひょんから確実に離す
+    player.x = nurarihyonEnemy.x - SIZE - 10;
+    player.y = nurarihyonEnemy.y + SIZE + 10;
+
     clampPlayer();
   }
 }
