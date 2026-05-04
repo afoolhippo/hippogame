@@ -11,6 +11,7 @@ const SIZE = 48;
 let currentMap = "field";
 let talking = false;
 let key = null;
+let mapChangeCooldown = 0;
 
 // ===== 画像 =====
 const load = src => { const i=new Image(); i.src=src; return i; };
@@ -26,10 +27,14 @@ const npcImgs = [
   load("assets/npc3.png")
 ];
 
-// ===== 音 =====
+// ===== 音（BGM）=====
 const music1 = new Audio("assets/music1.mp3");
 const music2 = new Audio("assets/music2.mp3");
 const music3 = new Audio("assets/music3.mp3");
+
+// ===== SE =====
+const seStart = new Audio("assets/enter.mp3");
+const seMove  = new Audio("assets/enter2.mp3");
 
 // ===== プレイヤー =====
 const player = { x:140, y:200 };
@@ -85,7 +90,7 @@ document.querySelectorAll("[data-key]").forEach(b=>{
   b.onpointerup=()=>key=null;
 });
 
-// ===== 全BGM停止 =====
+// ===== BGM停止 =====
 function stopAllMusic(){
   [music1, music2, music3].forEach(m=>{
     m.pause();
@@ -141,18 +146,34 @@ function isHit(a, b){
 // ===== マップ切り替え =====
 function checkMapChange(){
 
+  if(mapChangeCooldown > 0) return;
+
   // フィールド → 洞窟
   if(currentMap==="field" && isHit(player, caveEntrance)){
     currentMap = "cave";
-    player.x = caveExit.x;
-    player.y = caveExit.y;
+
+    player.x = BASE_W/2 - SIZE/2;
+    player.y = BASE_H - SIZE - 10;
+
+    // SE
+    seMove.currentTime = 0;
+    seMove.play().catch(()=>{});
+
+    mapChangeCooldown = 20;
   }
 
   // 洞窟 → フィールド
   else if(currentMap==="cave" && isHit(player, caveExit)){
     currentMap = "field";
+
     player.x = caveEntrance.x;
     player.y = caveEntrance.y + 60;
+
+    // SE
+    seMove.currentTime = 0;
+    seMove.play().catch(()=>{});
+
+    mapChangeCooldown = 20;
   }
 }
 
@@ -171,17 +192,14 @@ function draw(){
     0,0,BASE_W,BASE_H
   );
 
-  // 洞窟アイコン
   if(currentMap==="field"){
     ctx.drawImage(caveIcon, caveEntrance.x, caveEntrance.y, SIZE, SIZE);
   }
 
-  // NPC
   getNPCs().forEach(n=>{
     ctx.drawImage(n.img,n.x,n.y,SIZE,SIZE);
   });
 
-  // プレイヤー
   ctx.drawImage(hippo,player.x,player.y,SIZE,SIZE);
 }
 
@@ -195,6 +213,8 @@ function loop(){
     if(key==="ArrowRight") player.x+=2;
   }
 
+  if(mapChangeCooldown > 0) mapChangeCooldown--;
+
   clampPlayer();
   checkMapChange();
   draw();
@@ -202,13 +222,17 @@ function loop(){
   requestAnimationFrame(loop);
 }
 
-// ===== スタート（音声解放対応）=====
+// ===== スタート =====
 document.getElementById("titleImage").onclick=()=>{
 
-  // ★スマホ音声対策（重要）
-  [music1, music2, music3].forEach(m=>{
-    m.play().then(()=>m.pause()).catch(()=>{});
+  // ★ 音声ロック解除（スマホ対策）
+  [music1, music2, music3, seStart, seMove].forEach(a=>{
+    a.play().then(()=>a.pause()).catch(()=>{});
   });
+
+  // ★ スタートSE
+  seStart.currentTime = 0;
+  seStart.play().catch(()=>{});
 
   document.getElementById("titleScreen").classList.add("hidden");
   document.getElementById("gameScreen").classList.remove("hidden");
