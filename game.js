@@ -9,7 +9,9 @@ const BASE_W = 320;
 const BASE_H = 288;
 const SIZE = 48;
 
-// ===== 状態 =====
+// ===== ★超重要：状態（必ずここで定義）=====
+let gameState = "field";
+
 let currentMap = "field";
 let talking = false;
 let key = null;
@@ -35,7 +37,6 @@ const takarabakoImg = load("assets/takarabako.png");
 const music1 = new Audio("assets/music1.mp3");
 const music2 = new Audio("assets/music2.mp3");
 const music3 = new Audio("assets/music3.mp3");
-
 [music1, music2, music3].forEach(a=>a.volume=0.6);
 
 // ===== プレイヤー =====
@@ -56,8 +57,8 @@ const caveNPC = {
 };
 
 const treasure = {
-  x: caveNPC.x + 60,
-  y: caveNPC.y - 40,
+  x: caveNPC.x + 80,
+  y: caveNPC.y - 30,
   w: SIZE,
   h: SIZE
 };
@@ -166,8 +167,10 @@ talkBtn.onclick=()=>{
       talking=true;
 
       stopAllMusic();
-      n.music.currentTime=0;
-      n.music.play();
+      if(n.music){
+        n.music.currentTime=0;
+        n.music.play().catch(()=>{});
+      }
 
       return;
     }
@@ -178,6 +181,24 @@ talkBtn.onclick=()=>{
 function clampPlayer(){
   player.x=Math.max(0,Math.min(BASE_W-SIZE,player.x));
   player.y=Math.max(0,Math.min(BASE_H-SIZE,player.y));
+}
+
+// ===== マップ遷移 =====
+function checkMapChange(){
+
+  // フィールド → 洞窟
+  if(currentMap==="field" && isHit(player, caveEntrance)){
+    currentMap="cave";
+    player.x=caveSpawn.x;
+    player.y=caveSpawn.y;
+  }
+
+  // 洞窟 → フィールド
+  if(currentMap==="cave" && player.y > BASE_H - SIZE - 5){
+    currentMap="field";
+    player.x=caveEntrance.x;
+    player.y=caveEntrance.y + 60;
+  }
 }
 
 // ===== 描画 =====
@@ -211,6 +232,7 @@ function draw(){
 // ===== ループ =====
 function loop(){
 
+  // フィールド処理
   if(gameState==="field"){
 
     if(!talking && key){
@@ -220,14 +242,16 @@ function loop(){
       if(key==="ArrowRight") player.x+=2;
     }
 
-    // ミニゲーム突入
+    // ミニゲーム開始
     if(currentMap==="field" && isHit(player,nurarihyon)){
       startMiniGame();
     }
 
     clampPlayer();
+    checkMapChange();
   }
 
+  // ミニゲーム処理
   if(gameState==="minigame"){
     updateMiniGame();
   }
