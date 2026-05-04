@@ -22,10 +22,11 @@ let canExitCave = false;
 let hasKey = false;
 let nurarihyonDefeated = false;
 
-let battleTapCount = 0;
+let enemyHP = 20;
 let battleTimeLeft = 10;
 let battleMessage = "";
 let battleMessageTimer = 0;
+let victoryWaitTimer = 0;
 
 let countdown = 3;
 let isCountingDown = false;
@@ -198,10 +199,11 @@ function startBattle(){
   shakeTimer = 25;
   shakePower = 4;
 
-  battleTapCount = 0;
+  enemyHP = 20;
   battleTimeLeft = 10;
   battleMessage = "";
   battleMessageTimer = 0;
+  victoryWaitTimer = 0;
 
   countdown = 3;
   isCountingDown = true;
@@ -223,14 +225,14 @@ canvas.addEventListener("pointerdown", () => {
   if (gameMode !== "battle") return;
   if (isCountingDown) return;
 
-  battleTapCount++;
+  enemyHP = Math.max(0, enemyHP - 1);
 
   seTap.currentTime = 0;
   seTap.play().catch(() => {});
 
   flashTimer = 5;
 
-  if (battleTapCount >= 20) {
+  if (enemyHP <= 0) {
     winBattle();
   }
 });
@@ -252,7 +254,7 @@ function updateBattle(){
   if (flashTimer > 0) flashTimer--;
 
   if (battleTimeLeft <= 0) {
-    if (battleTapCount >= 20) {
+    if (enemyHP <= 0) {
       winBattle();
     } else {
       loseBattle();
@@ -265,9 +267,9 @@ function winBattle(){
   nurarihyonDefeated = true;
 
   battleMessage = "ぬらりひょんを倒した！ 鍵を手に入れた！";
-  battleMessageTimer = 60;
+  victoryWaitTimer = 240; // 約4秒
 
-  isFading = true;
+  isFading = false;
   fadeAlpha = 0;
 
   gameMode = "battleMessage";
@@ -279,6 +281,7 @@ function loseBattle(){
   gameMode = "map";
   battleMessage = "";
   battleMessageTimer = 0;
+  victoryWaitTimer = 0;
 
   player.x = nurarihyonEnemy.x - SIZE - 20;
   player.y = nurarihyonEnemy.y + SIZE + 30;
@@ -292,6 +295,16 @@ function loseBattle(){
 
 function updateBattleMessage(){
   if (gameMode !== "battleMessage") return;
+
+  if (victoryWaitTimer > 0) {
+    victoryWaitTimer--;
+
+    if (victoryWaitTimer <= 0) {
+      isFading = true;
+    }
+
+    return;
+  }
 
   if (isFading) {
     fadeAlpha += 0.03;
@@ -312,6 +325,11 @@ function updateBattleMessage(){
 
 // ===== 会話＆宝箱 =====
 talkBtn.onpointerdown = () => {
+  if (gameMode === "clear") {
+    window.location.href = "https://bakanakaba.wixsite.com/afoolhippo/portfolio";
+    return;
+  }
+
   if (gameMode !== "map") return;
 
   if (talking) {
@@ -329,12 +347,14 @@ talkBtn.onpointerdown = () => {
       return;
     }
 
-    closeDialog();
     stopAllMusic();
 
     seGet.cloneNode().play().catch(() => {});
 
     gameMode = "clear";
+    dialogBox.textContent = "ゲームクリア！ 画面をタップしてサイトへ";
+    dialogBox.classList.remove("hidden");
+    talkBtn.textContent = "サイトへ";
     return;
   }
 
@@ -487,8 +507,7 @@ function drawBattle(){
   const hpY = 185;
   const hpH = 18;
 
-  const progress = Math.min(battleTapCount / 20, 1);
-  const hpWidth = maxHpWidth * (1 - progress);
+  const hpWidth = maxHpWidth * (enemyHP / 20);
 
   ctx.strokeStyle = "black";
   ctx.strokeRect(hpX, hpY, maxHpWidth, hpH);
@@ -497,7 +516,7 @@ function drawBattle(){
   ctx.fillRect(hpX, hpY, hpWidth, hpH);
 
   ctx.fillStyle = "black";
-  ctx.fillText(`攻撃: ${battleTapCount} / 20`, 105, 225);
+  ctx.fillText(`HP: ${enemyHP} / 20`, 112, 225);
   ctx.fillText(`残り: ${Math.max(0, Math.ceil(battleTimeLeft))}秒`, 112, 245);
 
   ctx.restore();
@@ -528,10 +547,6 @@ function drawClear(){
   ctx.fillRect(0, 0, BASE_W, BASE_H);
 
   ctx.drawImage(gameClearImg, 0, 0, BASE_W, BASE_H);
-
-  ctx.fillStyle = "white";
-  ctx.font = "14px monospace";
-  ctx.fillText("タップしてサイトへ", 90, 260);
 }
 
 function splitText(text, count){
