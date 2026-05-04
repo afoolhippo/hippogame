@@ -26,8 +26,11 @@ const hippo    = load("assets/hippo.png");
 const npcImgs = [
   load("assets/npc1.png"),
   load("assets/npc2.png"),
-  load("assets/npc3.png")
+  load("assets/npc3.png"),
+  load("assets/npc4.png") // ★追加
 ];
+
+const takarabakoImg = load("assets/takarabako.png");
 
 // ===== 音 =====
 const music1 = new Audio("assets/music1.mp3");
@@ -37,7 +40,8 @@ const music3 = new Audio("assets/music3.mp3");
 
 const seStart = new Audio("assets/enter.mp3");
 const seMove  = new Audio("assets/enter2.mp3");
-[seStart, seMove].forEach(a=>a.volume = 0.6);
+const seGet   = new Audio("assets/get.mp3"); // ★宝箱
+[seStart, seMove, seGet].forEach(a=>a.volume = 0.6);
 
 // ===== プレイヤー =====
 const player = { x:140, y:200 };
@@ -49,12 +53,24 @@ const npcsField = [
   { x:50,y:200,text:"外の住人C",img:npcImgs[2], music:music3 },
 ];
 
-const npcsCave = [
-  { x:140,y:120,text:"洞窟へようこそ",img:npcImgs[0] }
-];
+// ★ 洞窟NPC（npc4）
+const caveNPC = {
+  x:140,
+  y:120,
+  text:"合言葉はbakanakabaじゃ・・・",
+  img:npcImgs[3]
+};
+
+// ★ 宝箱（NPCの右上）
+const treasure = {
+  x: caveNPC.x + 40,
+  y: caveNPC.y - 40,
+  w: SIZE,
+  h: SIZE
+};
 
 function getNPCs(){
-  return currentMap==="field"?npcsField:npcsCave;
+  return currentMap==="field" ? npcsField : [caveNPC];
 }
 
 // ===== 洞窟入口 =====
@@ -65,13 +81,12 @@ const caveEntrance = {
   h: SIZE
 };
 
-// ===== 洞窟内の出入口 =====
+// ===== 洞窟出入口 =====
 const caveSpawn = {
   x: BASE_W/2 - SIZE/2,
   y: BASE_H - SIZE - 10
 };
 
-// ★ 出口判定を小さくする（ここが今回の修正）
 const caveExit = {
   x: caveSpawn.x + 10,
   y: caveSpawn.y + 10,
@@ -107,13 +122,46 @@ function stopAllMusic(){
   });
 }
 
-// ===== 会話 =====
+// ===== 当たり判定 =====
+function isHit(a, b){
+  return (
+    a.x < b.x + b.w &&
+    a.x + SIZE > b.x &&
+    a.y < b.y + b.h &&
+    a.y + SIZE > b.y
+  );
+}
+
+// ===== 会話＆宝箱 =====
 talkBtn.onpointerdown=()=>{
   if(talking){
     closeDialog();
     return;
   }
 
+  // ★ 宝箱判定（洞窟のみ）
+  if(currentMap==="cave" && isHit(player, treasure)){
+    talking = true;
+    dialogBox.innerHTML = `
+      あなたはa fool hippo全曲視聴サイトへの入口を見つけました！<br>
+      <a href="https://bakanakaba.wixsite.com/afoolhippo/portfolio" target="_blank">
+      ▶ サイトへ
+      </a>
+    `;
+    dialogBox.classList.remove("hidden");
+
+    seGet.cloneNode().play().catch(()=>{});
+
+    // ★ 自動遷移（2秒後）
+    setTimeout(()=>{
+      window.location.href = "https://bakanakaba.wixsite.com/afoolhippo/portfolio";
+    },2000);
+
+    talkBtn.textContent="とじる";
+    return;
+  }
+
+  // NPC
   for(let n of getNPCs()){
     const dx=(player.x+SIZE/2)-(n.x+SIZE/2);
     const dy=(player.y+SIZE/2)-(n.y+SIZE/2);
@@ -142,22 +190,11 @@ function closeDialog(){
   talkBtn.textContent="話す";
 }
 
-// ===== 当たり判定 =====
-function isHit(a, b){
-  return (
-    a.x < b.x + b.w &&
-    a.x + SIZE > b.x &&
-    a.y < b.y + b.h &&
-    a.y + SIZE > b.y
-  );
-}
-
 // ===== マップ切り替え =====
 function checkMapChange(){
 
   if(mapChangeCooldown > 0) return;
 
-  // フィールド → 洞窟
   if(currentMap==="field" && isHit(player, caveEntrance)){
     currentMap = "cave";
 
@@ -171,11 +208,11 @@ function checkMapChange(){
     canExitCave = false;
   }
 
-  // 洞窟 → フィールド
   else if(
     currentMap==="cave" &&
     canExitCave &&
-    isHit(player, caveExit)
+    isHit(player, caveExit) &&
+    player.y > caveSpawn.y + 5
   ){
     currentMap = "field";
 
@@ -188,7 +225,7 @@ function checkMapChange(){
   }
 }
 
-// ===== 画面外制限 =====
+// ===== 画面制限 =====
 function clampPlayer(){
   player.x = Math.max(0, Math.min(BASE_W - SIZE, player.x));
   player.y = Math.max(0, Math.min(BASE_H - SIZE, player.y));
@@ -207,9 +244,15 @@ function draw(){
     ctx.drawImage(caveIcon, caveEntrance.x, caveEntrance.y, SIZE, SIZE);
   }
 
+  // NPC
   getNPCs().forEach(n=>{
     ctx.drawImage(n.img,n.x,n.y,SIZE,SIZE);
   });
+
+  // ★ 宝箱
+  if(currentMap==="cave"){
+    ctx.drawImage(takarabakoImg, treasure.x, treasure.y, SIZE, SIZE);
+  }
 
   ctx.drawImage(hippo,player.x,player.y,SIZE,SIZE);
 }
@@ -227,7 +270,6 @@ function loop(){
   if(mapChangeCooldown > 0) mapChangeCooldown--;
   if(justEnteredCave > 0) justEnteredCave--;
 
-  // ★ 少し動いたら出口有効
   if(currentMap==="cave"){
     if(Math.abs(player.y - caveSpawn.y) > 5){
       canExitCave = true;
