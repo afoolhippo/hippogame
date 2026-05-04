@@ -1,20 +1,20 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>カバの冒険</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カバの冒険</title>
+<link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<div id="titleScreen" class="screen">
+<div id="titleScreen">
   <img id="titleImage" src="assets/title.png">
   <p>タップしてスタート</p>
 </div>
 
-<div id="gameScreen" class="screen hidden">
+<div id="gameScreen" class="hidden">
 
   <canvas id="gameCanvas"></canvas>
 
@@ -22,7 +22,6 @@
 
   <div id="controls">
     <button data-key="ArrowUp">↑</button>
-
     <div class="row">
       <button data-key="ArrowLeft">←</button>
       <button data-key="ArrowDown">↓</button>
@@ -36,5 +35,6 @@
 </div>
 
 <script src="game.js"></script>
+
 </body>
 </html>
