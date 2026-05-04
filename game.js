@@ -10,7 +10,7 @@ const BASE_H = 288;
 const SIZE = 48;
 
 let currentMap = "field";
-let gameMode = "map"; // map / battle / battleMessage
+let gameMode = "map"; // map / battle / battleMessage / clear
 
 let talking = false;
 let key = null;
@@ -23,9 +23,19 @@ let hasKey = false;
 let nurarihyonDefeated = false;
 
 let battleTapCount = 0;
-let battleTimeLeft = 5;
+let battleTimeLeft = 10;
 let battleMessage = "";
 let battleMessageTimer = 0;
+
+let countdown = 3;
+let isCountingDown = false;
+
+let flashTimer = 0;
+let shakeTimer = 0;
+let shakePower = 0;
+
+let fadeAlpha = 0;
+let isFading = false;
 
 // ===== 画像 =====
 const load = src => {
@@ -39,6 +49,7 @@ const mapCave  = load("assets/map2.png");
 const caveIcon = load("assets/doukutsu.png");
 const hippo    = load("assets/hippo.png");
 const nurarihyonImg = load("assets/nurarihyon.png");
+const gameClearImg = load("assets/gameclear.png");
 
 const npcImgs = [
   load("assets/npc1.png"),
@@ -57,8 +68,14 @@ const music3 = new Audio("assets/music3.mp3");
 const seStart = new Audio("assets/enter.mp3");
 const seMove  = new Audio("assets/enter2.mp3");
 const seGet   = new Audio("assets/get.mp3");
+const seTap   = new Audio("assets/tap.mp3");
+const seNurarihyon = new Audio("assets/nurarihyon.mp3");
 
-[music1, music2, music3, seStart, seMove, seGet].forEach(a => a.volume = 0.6);
+[music1, music2, music3, seStart, seMove, seGet, seTap, seNurarihyon].forEach(a => {
+  a.volume = 0.6;
+});
+
+seNurarihyon.volume = 0.7;
 
 // ===== プレイヤー =====
 const player = { x: 140, y: 200 };
@@ -145,7 +162,7 @@ document.querySelectorAll("[data-key]").forEach(b => {
 
 // ===== BGM停止 =====
 function stopAllMusic(){
-  [music1, music2, music3, seStart, seMove, seGet].forEach(a => {
+  [music1, music2, music3].forEach(a => {
     a.pause();
     a.currentTime = 0;
   });
@@ -173,20 +190,45 @@ function startBattle(){
   talking = false;
   key = null;
 
+  stopAllMusic();
+
+  seNurarihyon.currentTime = 0;
+  seNurarihyon.play().catch(() => {});
+
+  shakeTimer = 25;
+  shakePower = 4;
+
   battleTapCount = 0;
-  battleTimeLeft = 5;
+  battleTimeLeft = 10;
   battleMessage = "";
   battleMessageTimer = 0;
 
+  countdown = 3;
+  isCountingDown = true;
+
+  flashTimer = 0;
+  fadeAlpha = 0;
+  isFading = false;
+
   closeDialog();
-  stopAllMusic();
 }
 
-// ===== ミニゲーム中タップ =====
+// ===== canvasタップ =====
 canvas.addEventListener("pointerdown", () => {
+  if (gameMode === "clear") {
+    window.location.href = "https://bakanakaba.wixsite.com/afoolhippo/portfolio";
+    return;
+  }
+
   if (gameMode !== "battle") return;
+  if (isCountingDown) return;
 
   battleTapCount++;
+
+  seTap.currentTime = 0;
+  seTap.play().catch(() => {});
+
+  flashTimer = 5;
 
   if (battleTapCount >= 20) {
     winBattle();
@@ -196,7 +238,18 @@ canvas.addEventListener("pointerdown", () => {
 function updateBattle(){
   if (gameMode !== "battle") return;
 
+  if (isCountingDown) {
+    countdown -= 1 / 60;
+
+    if (countdown <= 0) {
+      isCountingDown = false;
+    }
+    return;
+  }
+
   battleTimeLeft -= 1 / 60;
+
+  if (flashTimer > 0) flashTimer--;
 
   if (battleTimeLeft <= 0) {
     if (battleTapCount >= 20) {
@@ -210,31 +263,50 @@ function updateBattle(){
 function winBattle(){
   hasKey = true;
   nurarihyonDefeated = true;
+
   battleMessage = "ぬらりひょんを倒した！ 鍵を手に入れた！";
-  battleMessageTimer = 90;
+  battleMessageTimer = 60;
+
+  isFading = true;
+  fadeAlpha = 0;
+
   gameMode = "battleMessage";
+
   seGet.cloneNode().play().catch(() => {});
 }
 
 function loseBattle(){
-  battleMessage = "逃げられた……もう一度挑戦しよう！";
-  battleMessageTimer = 90;
-  gameMode = "battleMessage";
+  gameMode = "map";
+  battleMessage = "";
+  battleMessageTimer = 0;
+
+  player.x = nurarihyonEnemy.x - SIZE - 20;
+  player.y = nurarihyonEnemy.y + SIZE + 30;
+  clampPlayer();
+
+  talking = true;
+  dialogBox.textContent = "逃げられた……もう一度挑戦しよう！";
+  dialogBox.classList.remove("hidden");
+  talkBtn.textContent = "とじる";
 }
 
 function updateBattleMessage(){
   if (gameMode !== "battleMessage") return;
 
-  battleMessageTimer--;
+  if (isFading) {
+    fadeAlpha += 0.03;
 
-  if (battleMessageTimer <= 0) {
-    gameMode = "map";
+    if (fadeAlpha >= 1) {
+      fadeAlpha = 1;
+      isFading = false;
 
-    // 戦闘終了後、ぬらりひょんから確実に離す
-    player.x = nurarihyonEnemy.x - SIZE - 10;
-    player.y = nurarihyonEnemy.y + SIZE + 10;
+      gameMode = "map";
 
-    clampPlayer();
+      player.x = nurarihyonEnemy.x - SIZE - 20;
+      player.y = nurarihyonEnemy.y + SIZE + 30;
+
+      clampPlayer();
+    }
   }
 }
 
@@ -257,21 +329,12 @@ talkBtn.onpointerdown = () => {
       return;
     }
 
-    dialogBox.innerHTML = `
-      あなたはa fool hippo全曲視聴サイトへの入口を見つけました！<br>
-      <a href="https://bakanakaba.wixsite.com/afoolhippo/portfolio" target="_blank" style="color:white;">
-      ▶ サイトへ
-      </a>
-    `;
-    dialogBox.classList.remove("hidden");
+    closeDialog();
+    stopAllMusic();
 
     seGet.cloneNode().play().catch(() => {});
 
-    setTimeout(() => {
-      window.location.href = "https://bakanakaba.wixsite.com/afoolhippo/portfolio";
-    }, 2000);
-
-    talkBtn.textContent = "とじる";
+    gameMode = "clear";
     return;
   }
 
@@ -386,12 +449,35 @@ function draw(){
 
 // ===== ミニゲーム描画 =====
 function drawBattle(){
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, BASE_W, BASE_H);
+  let offsetX = 0;
+  let offsetY = 0;
 
-  ctx.drawImage(nurarihyonImg, 120, 35, 80, 80);
+  if (shakeTimer > 0) {
+    offsetX = (Math.random() - 0.5) * shakePower * 2;
+    offsetY = (Math.random() - 0.5) * shakePower * 2;
+    shakeTimer--;
+  }
+
+  ctx.save();
+  ctx.translate(offsetX, offsetY);
+
+  ctx.fillStyle = "white";
+  ctx.fillRect(-10, -10, BASE_W + 20, BASE_H + 20);
+
+  if (flashTimer % 2 === 0) {
+    ctx.drawImage(nurarihyonImg, 120, 35, 80, 80);
+  }
 
   ctx.fillStyle = "black";
+  ctx.font = "14px monospace";
+
+  if (isCountingDown) {
+    ctx.font = "30px monospace";
+    ctx.fillText(Math.ceil(countdown), 145, 160);
+    ctx.restore();
+    return;
+  }
+
   ctx.font = "14px monospace";
   ctx.fillText("ぬらりひょんがあらわれた！", 55, 140);
   ctx.fillText("画面をタップして攻撃だ！", 58, 162);
@@ -413,6 +499,8 @@ function drawBattle(){
   ctx.fillStyle = "black";
   ctx.fillText(`攻撃: ${battleTapCount} / 20`, 105, 225);
   ctx.fillText(`残り: ${Math.max(0, Math.ceil(battleTimeLeft))}秒`, 112, 245);
+
+  ctx.restore();
 }
 
 function drawBattleMessage(){
@@ -428,6 +516,22 @@ function drawBattleMessage(){
   lines.forEach((line, i) => {
     ctx.fillText(line, 35, 165 + i * 22);
   });
+
+  if (isFading) {
+    ctx.fillStyle = `rgba(0,0,0,${fadeAlpha})`;
+    ctx.fillRect(0, 0, BASE_W, BASE_H);
+  }
+}
+
+function drawClear(){
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, BASE_W, BASE_H);
+
+  ctx.drawImage(gameClearImg, 0, 0, BASE_W, BASE_H);
+
+  ctx.fillStyle = "white";
+  ctx.font = "14px monospace";
+  ctx.fillText("タップしてサイトへ", 90, 260);
 }
 
 function splitText(text, count){
@@ -471,6 +575,10 @@ function loop(){
   else if (gameMode === "battleMessage") {
     updateBattleMessage();
     drawBattleMessage();
+  }
+
+  else if (gameMode === "clear") {
+    drawClear();
   }
 
   requestAnimationFrame(loop);
