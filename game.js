@@ -266,7 +266,7 @@ function winBattle(){
   hasKey = true;
   nurarihyonDefeated = true;
 
-  battleMessage = "ぬらりひょんを倒した！ 鍵を手に入れた！";
+  battleMessage = "ぬらりひょんを倒した！\n何かのカギを手に入れた！";
   victoryWaitTimer = 240; // 約4秒
 
   isFading = false;
