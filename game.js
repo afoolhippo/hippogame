@@ -10,7 +10,8 @@ const BASE_H = 288;
 const SIZE = 48;
 
 let currentMap = "field";
-let gameMode = "map"; // map / battle / battleMessage / clear
+let gameMode = "map"; 
+// map / startFade / encounterIntro / battle / battleMessage / treasureOpen / clear
 
 let talking = false;
 let key = null;
@@ -25,7 +26,6 @@ let nurarihyonDefeated = false;
 let enemyHP = 20;
 let battleTimeLeft = 10;
 let battleMessage = "";
-let battleMessageTimer = 0;
 let victoryWaitTimer = 0;
 
 let countdown = 3;
@@ -37,6 +37,10 @@ let shakePower = 0;
 
 let fadeAlpha = 0;
 let isFading = false;
+
+let encounterIntroTimer = 0;
+let treasureOpenTimer = 0;
+let footCooldown = 0;
 
 // ===== 画像 =====
 const load = src => {
@@ -71,27 +75,51 @@ const seMove  = new Audio("assets/enter2.mp3");
 const seGet   = new Audio("assets/get.mp3");
 const seTap   = new Audio("assets/tap.mp3");
 const seNurarihyon = new Audio("assets/nurarihyon.mp3");
+const seFoot  = new Audio("assets/foot.mp3");
 
-[music1, music2, music3, seStart, seMove, seGet, seTap, seNurarihyon].forEach(a => {
+[music1, music2, music3, seStart, seMove, seGet, seTap, seNurarihyon, seFoot].forEach(a => {
   a.volume = 0.6;
 });
 
 seNurarihyon.volume = 0.7;
+seFoot.volume = 0.35;
 
 // ===== プレイヤー =====
 const player = { x: 140, y: 200 };
 
 // ===== NPC =====
 const npcsField = [
-  { x:100, y:80,  text:"茄子を食べたら、健康になれるかな？", img:npcImgs[0], music:music1 },
-  { x:200, y:150, text:"生姜焼きを食べた僕は、しょうがないと呟いた・・・", img:npcImgs[1], music:music2 },
-  { x:50,  y:200, text:"歯磨きしようぜ！", img:npcImgs[2], music:music3 },
+  {
+    x:100,
+    y:80,
+    text:"茄子を食べたら、健康になれるかな？",
+    afterText:"ぬらりひょんを倒したんだね！ 洞窟の宝箱を調べてみよう。",
+    img:npcImgs[0],
+    music:music1
+  },
+  {
+    x:200,
+    y:150,
+    text:"生姜焼きを食べた僕は、しょうがないと呟いた・・・",
+    afterText:"すごい！ そのカギ、きっと洞窟で使えるよ。",
+    img:npcImgs[1],
+    music:music2
+  },
+  {
+    x:50,
+    y:200,
+    text:"歯磨きしようぜ！",
+    afterText:"ぬらりひょん退治おめでとう！ 宝箱へ急げ！",
+    img:npcImgs[2],
+    music:music3
+  },
 ];
 
 const caveNPC = {
   x:140,
   y:120,
   text:"合言葉はbakanakabaじゃ・・・",
+  afterText:"そのカギなら、宝箱が開くかもしれんぞ・・・",
   img:npcImgs[3]
 };
 
@@ -161,7 +189,7 @@ document.querySelectorAll("[data-key]").forEach(b => {
   b.onpointerup = () => key = null;
 });
 
-// ===== BGM停止 =====
+// ===== 音停止 =====
 function stopAllMusic(){
   [music1, music2, music3].forEach(a => {
     a.pause();
@@ -171,8 +199,21 @@ function stopAllMusic(){
 
 if (stopBtn) {
   stopBtn.onclick = () => {
+    if (gameMode === "clear") {
+      location.reload();
+      return;
+    }
     stopAllMusic();
   };
+}
+
+function playFootstep(){
+  if (footCooldown > 0) return;
+
+  seFoot.currentTime = 0;
+  seFoot.play().catch(() => {});
+
+  footCooldown = 18;
 }
 
 // ===== 当たり判定 =====
@@ -183,6 +224,39 @@ function isHit(a, b){
     a.y < b.y + b.h &&
     a.y + SIZE > b.y
   );
+}
+
+// ===== エンカウント予兆 =====
+function startEncounterIntro(){
+  gameMode = "encounterIntro";
+  key = null;
+  talking = false;
+  closeDialog();
+  stopAllMusic();
+  encounterIntroTimer = 60;
+}
+
+function updateEncounterIntro(){
+  encounterIntroTimer--;
+
+  if (encounterIntroTimer <= 0) {
+    startBattle();
+  }
+}
+
+function drawEncounterIntro(){
+  draw();
+
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.fillRect(20, 105, BASE_W - 40, 70);
+
+  ctx.strokeStyle = "black";
+  ctx.strokeRect(20, 105, BASE_W - 40, 70);
+
+  ctx.fillStyle = "black";
+  ctx.font = "14px monospace";
+  ctx.fillText("ぬらりひょんが", 85, 135);
+  ctx.fillText("うごめいている……", 75, 158);
 }
 
 // ===== ミニゲーム開始 =====
@@ -202,7 +276,6 @@ function startBattle(){
   enemyHP = 20;
   battleTimeLeft = 10;
   battleMessage = "";
-  battleMessageTimer = 0;
   victoryWaitTimer = 0;
 
   countdown = 3;
@@ -267,7 +340,7 @@ function winBattle(){
   nurarihyonDefeated = true;
 
   battleMessage = "ぬらりひょんを倒した！\n何かのカギを手に入れた！";
-  victoryWaitTimer = 240; // 約4秒
+  victoryWaitTimer = 240;
 
   isFading = false;
   fadeAlpha = 0;
@@ -280,7 +353,6 @@ function winBattle(){
 function loseBattle(){
   gameMode = "map";
   battleMessage = "";
-  battleMessageTimer = 0;
   victoryWaitTimer = 0;
 
   player.x = nurarihyonEnemy.x - SIZE - 20;
@@ -341,7 +413,7 @@ talkBtn.onpointerdown = () => {
     talking = true;
 
     if (!hasKey) {
-      dialogBox.textContent = "鍵がかかっている……";
+      dialogBox.textContent = "鍵がかかっている……どこかにカギを持つ者がいるようだ。";
       dialogBox.classList.remove("hidden");
       talkBtn.textContent = "とじる";
       return;
@@ -351,10 +423,12 @@ talkBtn.onpointerdown = () => {
 
     seGet.cloneNode().play().catch(() => {});
 
-    gameMode = "clear";
-    dialogBox.textContent = "ゲームクリア！ 画面をタップしてサイトへ";
+    gameMode = "treasureOpen";
+    treasureOpenTimer = 150;
+
+    dialogBox.textContent = "カチャ……宝箱が開いた！";
     dialogBox.classList.remove("hidden");
-    talkBtn.textContent = "サイトへ";
+    talkBtn.textContent = "・・・";
     return;
   }
 
@@ -364,12 +438,19 @@ talkBtn.onpointerdown = () => {
 
     if (Math.sqrt(dx * dx + dy * dy) < 40) {
       talking = true;
-      dialogBox.textContent = n.text;
+
+      if (nurarihyonDefeated && n.afterText) {
+        dialogBox.textContent = n.afterText;
+      } else {
+        dialogBox.textContent = n.text;
+      }
+
       dialogBox.classList.remove("hidden");
 
       stopAllMusic();
 
-      if (n.music) {
+      // ぬらりひょん撃破後はNPC曲を流さない
+      if (!nurarihyonDefeated && n.music) {
         n.music.currentTime = 0;
         n.music.play().catch(() => {});
       }
@@ -384,6 +465,25 @@ function closeDialog(){
   talking = false;
   dialogBox.classList.add("hidden");
   talkBtn.textContent = "話す";
+}
+
+// ===== 宝箱開封 =====
+function updateTreasureOpen(){
+  treasureOpenTimer--;
+
+  if (treasureOpenTimer <= 0) {
+    gameMode = "clear";
+
+    dialogBox.textContent = "ゲームクリア！ 画面をタップしてサイトへ";
+    dialogBox.classList.remove("hidden");
+
+    talkBtn.textContent = "サイトへ";
+    stopBtn.textContent = "もう一度";
+  }
+}
+
+function drawTreasureOpen(){
+  draw();
 }
 
 // ===== マップ切り替え =====
@@ -435,7 +535,7 @@ function checkNurarihyonEncounter(){
   if (nurarihyonDefeated) return;
 
   if (isHit(player, nurarihyonEnemy)) {
-    startBattle();
+    startEncounterIntro();
   }
 }
 
@@ -465,6 +565,23 @@ function draw(){
   }
 
   ctx.drawImage(hippo, player.x, player.y, SIZE, SIZE);
+}
+
+// ===== 開始フェード =====
+function updateStartFade(){
+  fadeAlpha -= 0.03;
+
+  if (fadeAlpha <= 0) {
+    fadeAlpha = 0;
+    gameMode = "map";
+  }
+}
+
+function drawStartFade(){
+  draw();
+
+  ctx.fillStyle = `rgba(0,0,0,${fadeAlpha})`;
+  ctx.fillRect(0, 0, BASE_W, BASE_H);
 }
 
 // ===== ミニゲーム描画 =====
@@ -531,9 +648,16 @@ function drawBattleMessage(){
   ctx.fillStyle = "black";
   ctx.font = "14px monospace";
 
-  const lines = splitText(battleMessage, 18);
-  lines.forEach((line, i) => {
-    ctx.fillText(line, 35, 165 + i * 22);
+  const paragraphs = battleMessage.split("\n");
+  let y = 165;
+
+  paragraphs.forEach(p => {
+    const lines = splitText(p, 18);
+    lines.forEach(line => {
+      ctx.fillText(line, 35, y);
+      y += 22;
+    });
+    y += 8;
   });
 
   if (isFading) {
@@ -559,13 +683,36 @@ function splitText(text, count){
 
 // ===== ループ =====
 function loop(){
-  if (gameMode === "map") {
+  if (footCooldown > 0) footCooldown--;
+
+  if (gameMode === "startFade") {
+    updateStartFade();
+    drawStartFade();
+  }
+
+  else if (gameMode === "map") {
+    let moved = false;
+
     if (!talking && key) {
-      if (key === "ArrowUp") player.y -= 2;
-      if (key === "ArrowDown") player.y += 2;
-      if (key === "ArrowLeft") player.x -= 2;
-      if (key === "ArrowRight") player.x += 2;
+      if (key === "ArrowUp") {
+        player.y -= 2;
+        moved = true;
+      }
+      if (key === "ArrowDown") {
+        player.y += 2;
+        moved = true;
+      }
+      if (key === "ArrowLeft") {
+        player.x -= 2;
+        moved = true;
+      }
+      if (key === "ArrowRight") {
+        player.x += 2;
+        moved = true;
+      }
     }
+
+    if (moved) playFootstep();
 
     if (mapChangeCooldown > 0) mapChangeCooldown--;
     if (justEnteredCave > 0) justEnteredCave--;
@@ -582,6 +729,11 @@ function loop(){
     draw();
   }
 
+  else if (gameMode === "encounterIntro") {
+    updateEncounterIntro();
+    drawEncounterIntro();
+  }
+
   else if (gameMode === "battle") {
     updateBattle();
     drawBattle();
@@ -590,6 +742,11 @@ function loop(){
   else if (gameMode === "battleMessage") {
     updateBattleMessage();
     drawBattleMessage();
+  }
+
+  else if (gameMode === "treasureOpen") {
+    updateTreasureOpen();
+    drawTreasureOpen();
   }
 
   else if (gameMode === "clear") {
@@ -609,6 +766,9 @@ document.getElementById("titleImage").onclick = () => {
 
   document.getElementById("titleScreen").classList.add("hidden");
   document.getElementById("gameScreen").classList.remove("hidden");
+
+  fadeAlpha = 1;
+  gameMode = "startFade";
 
   loop();
 };
