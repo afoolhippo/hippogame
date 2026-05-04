@@ -4,32 +4,47 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>カバの冒険</title>
+
 <link rel="stylesheet" href="style.css">
+
+<!-- レトロフォント（任意） -->
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 
 <body>
 
-<!-- タイトル -->
+<!-- タイトル画面 -->
 <div id="titleScreen">
   <img id="titleImage" src="assets/title.png">
+  <p style="color:#0f380f; font-size:12px;">タップしてスタート</p>
 </div>
 
-<!-- ゲーム -->
+<!-- ゲーム画面 -->
 <div id="gameScreen" class="hidden">
+
+  <!-- 閉じるボタン -->
+  <button id="closeBtn">×</button>
+
+  <!-- キャンバス -->
   <canvas id="gameCanvas"></canvas>
 
+  <!-- 会話 -->
   <div id="dialogBox" class="hidden"></div>
 
-  <button id="talkBtn">話す</button>
-  <button id="stopBtn">BGM停止</button>
+  <!-- アクションボタン -->
+  <div>
+    <button id="talkBtn">話す</button>
+    <button id="stopBtn">BGM停止</button>
+  </div>
 
-  <!-- スマホ操作 -->
+  <!-- 十字キー -->
   <div id="pad">
     <button data-key="ArrowUp">↑</button>
     <button data-key="ArrowLeft">←</button>
     <button data-key="ArrowDown">↓</button>
     <button data-key="ArrowRight">→</button>
   </div>
+
 </div>
 
 <!-- ★順番重要 -->
