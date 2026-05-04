@@ -1,78 +1,135 @@
-// =====================
-// 基本
-// =====================
+// ===== 基本 =====
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-
 const dialogBox = document.getElementById("dialogBox");
 const talkBtn = document.getElementById("talkBtn");
-const stopBtn = document.getElementById("stopBtn");
+const stopBtn = document.getElementById("stopBtn"); // ★追加
 
 const BASE_W = 320;
 const BASE_H = 288;
 const SIZE = 48;
 
-canvas.width = BASE_W;
-canvas.height = BASE_H;
-
-// =====================
-// 状態（超重要：これだけ）
-// =====================
-let gameState = "field"; // field / minigame
+let currentMap = "field";
+let talking = false;
 let key = null;
+let mapChangeCooldown = 0;
+let justEnteredCave = 0;
+let canExitCave = false;
 
-let hasKey = false;
+// ===== 画像 =====
+const load = src => { const i=new Image(); i.src=src; return i; };
 
-// =====================
-// プレイヤー
-// =====================
-const player = { x: 140, y: 200 };
+const mapField = load("assets/map.png");
+const mapCave  = load("assets/map2.png");
+const caveIcon = load("assets/doukutsu.png");
+const hippo    = load("assets/hippo.png");
 
-// =====================
-// 敵（ぬらりひょん）
-// =====================
-const enemy = { x: 200, y: 120, w: 48, h: 48 };
+const npcImgs = [
+  load("assets/npc1.png"),
+  load("assets/npc2.png"),
+  load("assets/npc3.png"),
+  load("assets/npc4.png")
+];
 
-// =====================
-// 宝箱
-// =====================
-const treasure = { x: 220, y: 80, w: 48, h: 48 };
+const takarabakoImg = load("assets/takarabako.png");
 
-// =====================
-// ミニゲーム変数
-// =====================
-let mashCount = 0;
-let timeLeft = 5;
+// ===== 音 =====
+const music1 = new Audio("assets/music1.mp3");
+const music2 = new Audio("assets/music2.mp3");
+const music3 = new Audio("assets/music3.mp3");
 
-// =====================
-// 画像
-// =====================
-const load = src => {
-  const i = new Image();
-  i.src = src;
-  return i;
+const seStart = new Audio("assets/enter.mp3");
+const seMove  = new Audio("assets/enter2.mp3");
+const seGet   = new Audio("assets/get.mp3");
+
+// ★音量統一
+[music1, music2, music3, seStart, seMove, seGet].forEach(a=>a.volume = 0.6);
+
+// ===== プレイヤー =====
+const player = { x:140, y:200 };
+
+// ===== NPC =====
+const npcsField = [
+  { x:100,y:80,text:"茄子を食べたら、健康になれるかな？",img:npcImgs[0], music:music1 },
+  { x:200,y:150,text:"生姜焼きを食べた僕は、しょうがないと呟いた・・・",img:npcImgs[1], music:music2 },
+  { x:50,y:200,text:"歯磨きしようぜ！",img:npcImgs[2], music:music3 },
+];
+
+const caveNPC = {
+  x:140,
+  y:120,
+  text:"合言葉はbakanakabaじゃ・・・",
+  img:npcImgs[3]
 };
 
-const mapImg = load("assets/map.png");
-const hippo = load("assets/hippo.png");
-const nurarihyon = load("assets/nurarihyon.png");
-const chest = load("assets/takarabako.png");
+const treasure = {
+  x: caveNPC.x + 60,
+  y: caveNPC.y - 40,
+  w: SIZE,
+  h: SIZE
+};
 
-// =====================
-// 入力
-// =====================
-document.addEventListener("keydown", e => key = e.key);
-document.addEventListener("keyup", () => key = null);
+function getNPCs(){
+  return currentMap==="field" ? npcsField : [caveNPC];
+}
 
-document.querySelectorAll("[data-key]").forEach(b => {
-  b.onpointerdown = () => key = b.dataset.key;
-  b.onpointerup = () => key = null;
+// ===== 洞窟 =====
+const caveEntrance = {
+  x: BASE_W/2 - SIZE/2,
+  y: 10,
+  w: SIZE,
+  h: SIZE
+};
+
+const caveSpawn = {
+  x: BASE_W/2 - SIZE/2,
+  y: BASE_H - SIZE - 10
+};
+
+const caveExit = {
+  x: caveSpawn.x + 10,
+  y: caveSpawn.y + 10,
+  w: SIZE - 20,
+  h: SIZE - 20
+};
+
+// ===== リサイズ =====
+function resize(){
+  const scale = Math.min(innerWidth/BASE_W, innerHeight/BASE_H);
+  canvas.width=BASE_W;
+  canvas.height=BASE_H;
+  canvas.style.width=BASE_W*scale+"px";
+  canvas.style.height=BASE_H*scale+"px";
+}
+addEventListener("resize",resize);
+resize();
+
+// ===== 入力 =====
+document.addEventListener("keydown",e=>key=e.key);
+document.addEventListener("keyup",()=>key=null);
+
+document.querySelectorAll("[data-key]").forEach(b=>{
+  b.onpointerdown=()=>key=b.dataset.key;
+  b.onpointerup=()=>key=null;
 });
 
-// =====================
-// 当たり判定
-// =====================
-function hit(a, b) {
+// ===== ★BGM停止（強化版）=====
+function stopAllMusic(){
+  [music1, music2, music3, seStart, seMove, seGet].forEach(a=>{
+    a.pause();
+    a.currentTime = 0;
+  });
+}
+
+// ★ボタンに確実に紐づけ
+if(stopBtn){
+  stopBtn.onclick = () => {
+    stopAllMusic();
+  };
+}
+
+// ===== 当たり判定 =====
+function isHit(a, b){
   return (
     a.x < b.x + b.w &&
     a.x + SIZE > b.x &&
@@ -81,118 +138,164 @@ function hit(a, b) {
   );
 }
 
-// =====================
-// ミニゲーム開始
-// =====================
-function startMiniGame() {
-  gameState = "minigame";
-  mashCount = 0;
-  timeLeft = 5;
-}
+// ===== 会話＆宝箱 =====
+talkBtn.onpointerdown=()=>{
+  if(talking){
+    closeDialog();
+    return;
+  }
 
-// =====================
-// ミニゲーム更新
-// =====================
-function updateMiniGame() {
-  if (gameState !== "minigame") return;
+  if(currentMap==="cave" && isHit(player, treasure)){
+    talking = true;
 
-  timeLeft -= 1 / 60;
+    dialogBox.innerHTML = `
+      あなたはa fool hippo全曲視聴サイトへの入口を見つけました！<br>
+      <a href="https://bakanakaba.wixsite.com/afoolhippo/portfolio" target="_blank" style="color:white;">
+      ▶ サイトへ
+      </a>
+    `;
+    dialogBox.classList.remove("hidden");
 
-  if (timeLeft <= 0) {
-    if (mashCount >= 20) {
-      hasKey = true;
-      alert("鍵ゲット！");
-    } else {
-      alert("失敗！");
+    seGet.cloneNode().play().catch(()=>{});
+
+    setTimeout(()=>{
+      window.location.href = "https://bakanakaba.wixsite.com/afoolhippo/portfolio";
+    },2000);
+
+    talkBtn.textContent="とじる";
+    return;
+  }
+
+  for(let n of getNPCs()){
+    const dx=(player.x+SIZE/2)-(n.x+SIZE/2);
+    const dy=(player.y+SIZE/2)-(n.y+SIZE/2);
+    if(Math.sqrt(dx*dx+dy*dy)<40){
+
+      talking = true;
+      dialogBox.textContent = n.text;
+      dialogBox.classList.remove("hidden");
+
+      stopAllMusic();
+
+      if(n.music){
+        n.music.currentTime = 0;
+        n.music.play().catch(()=>{});
+      }
+
+      talkBtn.textContent="とじる";
+      return;
     }
+  }
+};
 
-    gameState = "field";
+function closeDialog(){
+  talking=false;
+  dialogBox.classList.add("hidden");
+  talkBtn.textContent="話す";
+}
+
+// ===== マップ切り替え =====
+function checkMapChange(){
+
+  if(mapChangeCooldown > 0) return;
+
+  if(currentMap==="field" && isHit(player, caveEntrance)){
+    currentMap = "cave";
+
+    player.x = caveSpawn.x;
+    player.y = caveSpawn.y;
+
+    seMove.cloneNode().play().catch(()=>{});
+
+    mapChangeCooldown = 20;
+    justEnteredCave = 30;
+    canExitCave = false;
+  }
+
+  else if(
+    currentMap==="cave" &&
+    canExitCave &&
+    isHit(player, caveExit) &&
+    player.y > caveSpawn.y + 5
+  ){
+    currentMap = "field";
+
+    player.x = caveEntrance.x;
+    player.y = caveEntrance.y + 60;
+
+    seMove.cloneNode().play().catch(()=>{});
+
+    mapChangeCooldown = 20;
   }
 }
 
-// =====================
-// フィールド更新
-// =====================
-function updateField() {
-  if (key === "ArrowUp") player.y -= 2;
-  if (key === "ArrowDown") player.y += 2;
-  if (key === "ArrowLeft") player.x -= 2;
-  if (key === "ArrowRight") player.x += 2;
-
-  // 敵接触 → ミニゲーム
-  if (hit(player, enemy)) {
-    startMiniGame();
-  }
-
+// ===== 画面制限 =====
+function clampPlayer(){
   player.x = Math.max(0, Math.min(BASE_W - SIZE, player.x));
   player.y = Math.max(0, Math.min(BASE_H - SIZE, player.y));
 }
 
-// =====================
-// クリック（連打）
-// =====================
-canvas.addEventListener("pointerdown", () => {
-  if (gameState !== "minigame") return;
-  mashCount++;
-});
+// ===== 描画 =====
+function draw(){
+  ctx.clearRect(0,0,BASE_W,BASE_H);
 
-// =====================
-// 描画
-// =====================
-function draw() {
-  ctx.clearRect(0, 0, BASE_W, BASE_H);
+  ctx.drawImage(
+    currentMap==="field"?mapField:mapCave,
+    0,0,BASE_W,BASE_H
+  );
 
-  ctx.drawImage(mapImg, 0, 0, BASE_W, BASE_H);
-
-  // 敵
-  ctx.drawImage(nurarihyon, enemy.x, enemy.y, SIZE, SIZE);
-
-  // 宝箱
-  if (hasKey) {
-    ctx.drawImage(chest, treasure.x, treasure.y, SIZE, SIZE);
+  if(currentMap==="field"){
+    ctx.drawImage(caveIcon, caveEntrance.x, caveEntrance.y, SIZE, SIZE);
   }
 
-  // プレイヤー
-  ctx.drawImage(hippo, player.x, player.y, SIZE, SIZE);
+  getNPCs().forEach(n=>{
+    ctx.drawImage(n.img,n.x,n.y,SIZE,SIZE);
+  });
+
+  if(currentMap==="cave"){
+    ctx.drawImage(takarabakoImg, treasure.x, treasure.y, SIZE, SIZE);
+  }
+
+  ctx.drawImage(hippo,player.x,player.y,SIZE,SIZE);
 }
 
-// =====================
-// ミニゲーム描画
-// =====================
-function drawMiniGame() {
-  if (gameState !== "minigame") return;
+// ===== ループ =====
+function loop(){
 
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, BASE_W, BASE_H);
+  if(!talking && key){
+    if(key==="ArrowUp") player.y-=2;
+    if(key==="ArrowDown") player.y+=2;
+    if(key==="ArrowLeft") player.x-=2;
+    if(key==="ArrowRight") player.x+=2;
+  }
 
-  ctx.drawImage(nurarihyon, 120, 40, 80, 80);
+  if(mapChangeCooldown > 0) mapChangeCooldown--;
+  if(justEnteredCave > 0) justEnteredCave--;
 
-  ctx.fillStyle = "black";
-  ctx.fillText("ぬらりひょんがあらわれた！", 60, 150);
-  ctx.fillText("5秒で20回タップ！", 80, 170);
+  if(currentMap==="cave"){
+    if(Math.abs(player.y - caveSpawn.y) > 5){
+      canExitCave = true;
+    }
+  }
 
-  ctx.fillText(`連打: ${mashCount}`, 120, 210);
-  ctx.fillText(`残り: ${Math.ceil(timeLeft)}`, 120, 230);
-}
-
-// =====================
-// ループ
-// =====================
-function loop() {
-  if (gameState === "field") updateField();
-  if (gameState === "minigame") updateMiniGame();
-
+  clampPlayer();
+  checkMapChange();
   draw();
-  drawMiniGame();
 
   requestAnimationFrame(loop);
 }
 
-// =====================
-// スタート
-// =====================
-document.getElementById("titleImage").onclick = () => {
+// ===== スタート =====
+document.getElementById("titleImage").onclick=()=>{
+
+  [music1, music2, music3].forEach(a=>{
+    a.play().then(()=>a.pause()).catch(()=>{});
+  });
+
+  seStart.cloneNode().play().catch(()=>{});
+
   document.getElementById("titleScreen").classList.add("hidden");
   document.getElementById("gameScreen").classList.remove("hidden");
+
   loop();
 };
