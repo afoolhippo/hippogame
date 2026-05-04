@@ -3,18 +3,16 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const dialogBox = document.getElementById("dialogBox");
 const talkBtn = document.getElementById("talkBtn");
-const stopBtn = document.getElementById("stopBtn"); // ★追加
+const stopBtn = document.getElementById("stopBtn");
 
 const BASE_W = 320;
 const BASE_H = 288;
 const SIZE = 48;
 
+// ===== 状態 =====
 let currentMap = "field";
 let talking = false;
 let key = null;
-let mapChangeCooldown = 0;
-let justEnteredCave = 0;
-let canExitCave = false;
 
 // ===== 画像 =====
 const load = src => { const i=new Image(); i.src=src; return i; };
@@ -38,12 +36,7 @@ const music1 = new Audio("assets/music1.mp3");
 const music2 = new Audio("assets/music2.mp3");
 const music3 = new Audio("assets/music3.mp3");
 
-const seStart = new Audio("assets/enter.mp3");
-const seMove  = new Audio("assets/enter2.mp3");
-const seGet   = new Audio("assets/get.mp3");
-
-// ★音量統一
-[music1, music2, music3, seStart, seMove, seGet].forEach(a=>a.volume = 0.6);
+[music1, music2, music3].forEach(a=>a.volume=0.6);
 
 // ===== プレイヤー =====
 const player = { x:140, y:200 };
@@ -73,6 +66,14 @@ function getNPCs(){
   return currentMap==="field" ? npcsField : [caveNPC];
 }
 
+// ===== ぬらりひょん =====
+const nurarihyon = {
+  x: 220,
+  y: 80,
+  w: SIZE,
+  h: SIZE
+};
+
 // ===== 洞窟 =====
 const caveEntrance = {
   x: BASE_W/2 - SIZE/2,
@@ -84,13 +85,6 @@ const caveEntrance = {
 const caveSpawn = {
   x: BASE_W/2 - SIZE/2,
   y: BASE_H - SIZE - 10
-};
-
-const caveExit = {
-  x: caveSpawn.x + 10,
-  y: caveSpawn.y + 10,
-  w: SIZE - 20,
-  h: SIZE - 20
 };
 
 // ===== リサイズ =====
@@ -113,20 +107,14 @@ document.querySelectorAll("[data-key]").forEach(b=>{
   b.onpointerup=()=>key=null;
 });
 
-// ===== ★BGM停止（強化版）=====
+// ===== BGM停止 =====
 function stopAllMusic(){
-  [music1, music2, music3, seStart, seMove, seGet].forEach(a=>{
+  [music1, music2, music3].forEach(a=>{
     a.pause();
-    a.currentTime = 0;
+    a.currentTime=0;
   });
 }
-
-// ★ボタンに確実に紐づけ
-if(stopBtn){
-  stopBtn.onclick = () => {
-    stopAllMusic();
-  };
-}
+stopBtn.onclick = stopAllMusic;
 
 // ===== 当たり判定 =====
 function isHit(a, b){
@@ -138,122 +126,83 @@ function isHit(a, b){
   );
 }
 
-// ===== 会話＆宝箱 =====
-talkBtn.onpointerdown=()=>{
+// ===== 会話 =====
+talkBtn.onclick=()=>{
+
   if(talking){
-    closeDialog();
+    dialogBox.classList.add("hidden");
+    talking=false;
+    talkBtn.textContent="話す";
     return;
   }
 
+  // 宝箱
   if(currentMap==="cave" && isHit(player, treasure)){
-    talking = true;
 
-    dialogBox.innerHTML = `
-      あなたはa fool hippo全曲視聴サイトへの入口を見つけました！<br>
-      <a href="https://bakanakaba.wixsite.com/afoolhippo/portfolio" target="_blank" style="color:white;">
-      ▶ サイトへ
-      </a>
+    if(!hasKey){
+      dialogBox.textContent="鍵がかかっている・・・";
+      dialogBox.classList.remove("hidden");
+      talking=true;
+      return;
+    }
+
+    dialogBox.innerHTML=`
+    あなたはa fool hippo全曲視聴サイトへの入口を見つけました！<br>
+    <a href="https://bakanakaba.wixsite.com/afoolhippo/portfolio" target="_blank" style="color:white;">▶サイトへ</a>
     `;
     dialogBox.classList.remove("hidden");
-
-    seGet.cloneNode().play().catch(()=>{});
-
-    setTimeout(()=>{
-      window.location.href = "https://bakanakaba.wixsite.com/afoolhippo/portfolio";
-    },2000);
-
-    talkBtn.textContent="とじる";
+    talking=true;
     return;
   }
 
+  // NPC
   for(let n of getNPCs()){
     const dx=(player.x+SIZE/2)-(n.x+SIZE/2);
     const dy=(player.y+SIZE/2)-(n.y+SIZE/2);
     if(Math.sqrt(dx*dx+dy*dy)<40){
 
-      talking = true;
-      dialogBox.textContent = n.text;
+      dialogBox.textContent=n.text;
       dialogBox.classList.remove("hidden");
+      talking=true;
 
       stopAllMusic();
+      n.music.currentTime=0;
+      n.music.play();
 
-      if(n.music){
-        n.music.currentTime = 0;
-        n.music.play().catch(()=>{});
-      }
-
-      talkBtn.textContent="とじる";
       return;
     }
   }
 };
 
-function closeDialog(){
-  talking=false;
-  dialogBox.classList.add("hidden");
-  talkBtn.textContent="話す";
-}
-
-// ===== マップ切り替え =====
-function checkMapChange(){
-
-  if(mapChangeCooldown > 0) return;
-
-  if(currentMap==="field" && isHit(player, caveEntrance)){
-    currentMap = "cave";
-
-    player.x = caveSpawn.x;
-    player.y = caveSpawn.y;
-
-    seMove.cloneNode().play().catch(()=>{});
-
-    mapChangeCooldown = 20;
-    justEnteredCave = 30;
-    canExitCave = false;
-  }
-
-  else if(
-    currentMap==="cave" &&
-    canExitCave &&
-    isHit(player, caveExit) &&
-    player.y > caveSpawn.y + 5
-  ){
-    currentMap = "field";
-
-    player.x = caveEntrance.x;
-    player.y = caveEntrance.y + 60;
-
-    seMove.cloneNode().play().catch(()=>{});
-
-    mapChangeCooldown = 20;
-  }
-}
-
-// ===== 画面制限 =====
+// ===== 移動制限 =====
 function clampPlayer(){
-  player.x = Math.max(0, Math.min(BASE_W - SIZE, player.x));
-  player.y = Math.max(0, Math.min(BASE_H - SIZE, player.y));
+  player.x=Math.max(0,Math.min(BASE_W-SIZE,player.x));
+  player.y=Math.max(0,Math.min(BASE_H-SIZE,player.y));
 }
 
 // ===== 描画 =====
 function draw(){
+
   ctx.clearRect(0,0,BASE_W,BASE_H);
 
-  ctx.drawImage(
-    currentMap==="field"?mapField:mapCave,
-    0,0,BASE_W,BASE_H
-  );
+  ctx.drawImage(currentMap==="field"?mapField:mapCave,0,0,BASE_W,BASE_H);
 
   if(currentMap==="field"){
-    ctx.drawImage(caveIcon, caveEntrance.x, caveEntrance.y, SIZE, SIZE);
+    ctx.drawImage(caveIcon,caveEntrance.x,caveEntrance.y,SIZE,SIZE);
   }
 
   getNPCs().forEach(n=>{
     ctx.drawImage(n.img,n.x,n.y,SIZE,SIZE);
   });
 
+  // ぬらりひょん
+  if(currentMap==="field"){
+    ctx.fillStyle="purple";
+    ctx.fillRect(nurarihyon.x,nurarihyon.y,SIZE,SIZE);
+  }
+
   if(currentMap==="cave"){
-    ctx.drawImage(takarabakoImg, treasure.x, treasure.y, SIZE, SIZE);
+    ctx.drawImage(takarabakoImg,treasure.x,treasure.y,SIZE,SIZE);
   }
 
   ctx.drawImage(hippo,player.x,player.y,SIZE,SIZE);
@@ -262,40 +211,36 @@ function draw(){
 // ===== ループ =====
 function loop(){
 
-  if(!talking && key){
-    if(key==="ArrowUp") player.y-=2;
-    if(key==="ArrowDown") player.y+=2;
-    if(key==="ArrowLeft") player.x-=2;
-    if(key==="ArrowRight") player.x+=2;
-  }
+  if(gameState==="field"){
 
-  if(mapChangeCooldown > 0) mapChangeCooldown--;
-  if(justEnteredCave > 0) justEnteredCave--;
-
-  if(currentMap==="cave"){
-    if(Math.abs(player.y - caveSpawn.y) > 5){
-      canExitCave = true;
+    if(!talking && key){
+      if(key==="ArrowUp") player.y-=2;
+      if(key==="ArrowDown") player.y+=2;
+      if(key==="ArrowLeft") player.x-=2;
+      if(key==="ArrowRight") player.x+=2;
     }
+
+    // ミニゲーム突入
+    if(currentMap==="field" && isHit(player,nurarihyon)){
+      startMiniGame();
+    }
+
+    clampPlayer();
   }
 
-  clampPlayer();
-  checkMapChange();
+  if(gameState==="minigame"){
+    updateMiniGame();
+  }
+
   draw();
+  drawMiniGame();
 
   requestAnimationFrame(loop);
 }
 
 // ===== スタート =====
 document.getElementById("titleImage").onclick=()=>{
-
-  [music1, music2, music3].forEach(a=>{
-    a.play().then(()=>a.pause()).catch(()=>{});
-  });
-
-  seStart.cloneNode().play().catch(()=>{});
-
   document.getElementById("titleScreen").classList.add("hidden");
   document.getElementById("gameScreen").classList.remove("hidden");
-
   loop();
 };
